@@ -1,2 +1,2 @@
 # pkg
-Reusable packages repository
+Reusable packages repository.
