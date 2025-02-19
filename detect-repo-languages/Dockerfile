@@ -5,7 +5,7 @@ COPY . /code
 WORKDIR /code
 RUN go mod tidy &&\
     go mod vendor &&\
-    go build main.go
+    go build cmd/main.go
 
 FROM scratch AS run
 
