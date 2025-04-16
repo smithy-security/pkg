@@ -1,16 +1,42 @@
 package sarif_test
 
 import (
+	"context"
 	_ "embed"
+	"encoding/json"
+	"os"
 	"testing"
+	"time"
 
-	schemav1 "github.com/smithy-security/pkg/sarif/spec/gen/sarif-schema/v2-1-0"
+	"github.com/jonboulle/clockwork"
+
+	ocsffindinginfo "github.com/smithy-security/smithy/sdk/gen/ocsf_ext/finding_info/v1"
+	ocsf "github.com/smithy-security/smithy/sdk/gen/ocsf_schema/v1"
+	"github.com/stretchr/testify/require"
+	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/types/known/timestamppb"
+
+	sariftransformer "github.com/smithy-security/pkg/sarif"
+	"github.com/smithy-security/pkg/sarif/internal/ptr"
+	sarif "github.com/smithy-security/pkg/sarif/spec/gen/sarif-schema/v2-1-0"
 )
+
+const fixedUUID = "d258a2dc-b324-46aa-9cea-28ba8d44fcb8"
 
 var (
 	//go:embed testdata/gosec_v2.1.0.json
 	reportV2_1_0 []byte
+
+	staticNow = time.Date(2024, 11, 1, 0, 0, 0, 0, time.UTC)
 )
+
+type MockUUIDProvider struct {
+	FixedUUID string
+}
+
+func (m MockUUIDProvider) String() string {
+	return m.FixedUUID
+}
 
 func TestReportFromBytesV2_1_0(t *testing.T) {
 	const (
@@ -21,7 +47,7 @@ func TestReportFromBytesV2_1_0(t *testing.T) {
 		expectedNumDriverRules = 15
 	)
 
-	report := schemav1.SchemaJson{}
+	report := sarif.SchemaJson{}
 	if err := report.UnmarshalJSON(reportV2_1_0); err != nil {
 		t.Fatalf("report unmarshalling failed: %v", err)
 	}
@@ -209,4 +235,1633 @@ func TestReportFromBytesV2_1_0(t *testing.T) {
 			}
 		}
 	}
+}
+
+func Test_ParseOut(t *testing.T) {
+	t.Run("gosec testcase", func(t *testing.T) {
+		exampleOutput, err := os.ReadFile("./testdata/gosec_v2.1.0.sarifconversiontests.json")
+		require.NoError(t, err)
+		var sarifOutput sarif.SchemaJson
+		require.NoError(t, json.Unmarshal(exampleOutput, &sarifOutput))
+
+		clock := clockwork.NewFakeClockAt(staticNow)
+		now := staticNow
+		expectedIssues := []*ocsf.VulnerabilityFinding{
+			{
+				ActivityId:   ocsf.VulnerabilityFinding_ACTIVITY_ID_CREATE,
+				ActivityName: ptr.Ptr("ACTIVITY_ID_CREATE"),
+				CategoryName: ptr.Ptr("CATEGORY_UID_FINDINGS"),
+				CategoryUid:  ocsf.VulnerabilityFinding_CATEGORY_UID_FINDINGS,
+				ClassName:    ptr.Ptr("CLASS_UID_VULNERABILITY_FINDING"),
+				ClassUid:     ocsf.VulnerabilityFinding_CLASS_UID_VULNERABILITY_FINDING,
+				Confidence:   ptr.Ptr("CONFIDENCE_ID_UNKNOWN"),
+				ConfidenceId: ptr.Ptr(ocsf.VulnerabilityFinding_CONFIDENCE_ID_UNKNOWN),
+				Count:        ptr.Ptr(int32(1)),
+				FindingInfo: &ocsf.FindingInfo{
+					CreatedTime:   ptr.Ptr(now.Unix()),
+					CreatedTimeDt: timestamppb.New(now),
+					DataSources: []string{
+						"{\"targetType\":\"TARGET_TYPE_REPOSITORY\",\"uri\":{\"uriSchema\":\"URI_SCHEMA_FILE\",\"path\":\"file://main.go\"},\"fileFindingLocationData\":{\"startLine\":83,\"startColumn\":7}}",
+					},
+					Desc:            ptr.Ptr("[test for missing endLine, common in some tools]"),
+					FirstSeenTime:   ptr.Ptr(now.Unix()),
+					FirstSeenTimeDt: timestamppb.New(now),
+					LastSeenTime:    ptr.Ptr(now.Unix()),
+					LastSeenTimeDt:  timestamppb.New(now),
+					ModifiedTime:    ptr.Ptr(now.Unix()),
+					ModifiedTimeDt:  timestamppb.New(now),
+					Uid:             fixedUUID,
+					Title:           "[test for missing endLine, common in some tools]",
+				},
+				Message: ptr.Ptr("[test for missing endLine, common in some tools]"),
+				Metadata: &ocsf.Metadata{
+					EventCode: ptr.Ptr("G404"),
+					Product: &ocsf.Product{
+						Name: ptr.Ptr("gosec"),
+					},
+				},
+				Severity:   ptr.Ptr("SEVERITY_ID_HIGH"),
+				SeverityId: ocsf.VulnerabilityFinding_SEVERITY_ID_HIGH, StartTime: ptr.Ptr(now.Unix()),
+				StatusId: ptr.Ptr(ocsf.VulnerabilityFinding_STATUS_ID_NEW),
+				Status:   ptr.Ptr("STATUS_ID_NEW"),
+				Time:     now.Unix(),
+				TimeDt:   timestamppb.New(now),
+				TypeName: ptr.Ptr("Create"),
+				TypeUid:  int64(200201),
+				Vulnerabilities: []*ocsf.Vulnerability{
+					{
+						AffectedCode: []*ocsf.AffectedCode{
+							{
+								File: &ocsf.File{
+									Name: "main.go",
+									Path: ptr.Ptr("file://main.go"),
+								},
+								StartLine: ptr.Ptr(int32(83)),
+							},
+						},
+						Desc:            ptr.Ptr("[test for missing endLine, common in some tools]"),
+						FirstSeenTime:   ptr.Ptr(now.Unix()),
+						FirstSeenTimeDt: timestamppb.New(now),
+						FixAvailable:    ptr.Ptr(false),
+						IsFixAvailable:  ptr.Ptr(false),
+						LastSeenTime:    ptr.Ptr(now.Unix()),
+						LastSeenTimeDt:  timestamppb.New(now),
+						Severity:        ptr.Ptr("SEVERITY_ID_HIGH"),
+						Title:           ptr.Ptr("[test for missing endLine, common in some tools]"),
+						VendorName:      ptr.Ptr("gosec"),
+					},
+				},
+			},
+			{
+				ActivityId:   ocsf.VulnerabilityFinding_ACTIVITY_ID_CREATE,
+				ActivityName: ptr.Ptr("ACTIVITY_ID_CREATE"),
+				CategoryName: ptr.Ptr("CATEGORY_UID_FINDINGS"),
+				CategoryUid:  ocsf.VulnerabilityFinding_CATEGORY_UID_FINDINGS,
+				ClassName:    ptr.Ptr("CLASS_UID_VULNERABILITY_FINDING"),
+				ClassUid:     ocsf.VulnerabilityFinding_CLASS_UID_VULNERABILITY_FINDING,
+				Confidence:   ptr.Ptr("CONFIDENCE_ID_UNKNOWN"),
+				ConfidenceId: ptr.Ptr(ocsf.VulnerabilityFinding_CONFIDENCE_ID_UNKNOWN),
+				Count:        ptr.Ptr(int32(1)),
+				FindingInfo: &ocsf.FindingInfo{
+					CreatedTime:   ptr.Ptr(now.Unix()),
+					CreatedTimeDt: timestamppb.New(now),
+					DataSources: []string{
+						"{\"targetType\":\"TARGET_TYPE_REPOSITORY\",\"uri\":{\"uriSchema\":\"URI_SCHEMA_FILE\",\"path\":\"file://main.go\"},\"fileFindingLocationData\":{\"startLine\":83,\"endLine\":83,\"startColumn\":7,\"endColumn\":7}}",
+					},
+					Desc:            ptr.Ptr("Use of weak random number generator (math/rand instead of crypto/rand)"),
+					FirstSeenTime:   ptr.Ptr(now.Unix()),
+					FirstSeenTimeDt: timestamppb.New(now),
+					LastSeenTime:    ptr.Ptr(now.Unix()),
+					LastSeenTimeDt:  timestamppb.New(now),
+					ModifiedTime:    ptr.Ptr(now.Unix()),
+					ModifiedTimeDt:  timestamppb.New(now),
+					Uid:             fixedUUID,
+					Title:           "Use of weak random number generator (math/rand instead of crypto/rand)",
+				},
+				Message: ptr.Ptr("Use of weak random number generator (math/rand instead of crypto/rand)"),
+				Metadata: &ocsf.Metadata{
+					EventCode: ptr.Ptr("G404"),
+					Product: &ocsf.Product{
+						Name: ptr.Ptr("gosec"),
+					},
+				},
+				Severity:   ptr.Ptr("SEVERITY_ID_HIGH"),
+				SeverityId: ocsf.VulnerabilityFinding_SEVERITY_ID_HIGH, StartTime: ptr.Ptr(now.Unix()),
+				StatusId: ptr.Ptr(ocsf.VulnerabilityFinding_STATUS_ID_NEW),
+				Status:   ptr.Ptr("STATUS_ID_NEW"),
+				Time:     now.Unix(),
+				TimeDt:   timestamppb.New(now),
+				TypeName: ptr.Ptr("Create"),
+				TypeUid:  int64(200201),
+				Vulnerabilities: []*ocsf.Vulnerability{
+					{
+						AffectedCode: []*ocsf.AffectedCode{
+							{
+								File: &ocsf.File{
+
+									Name: "main.go",
+									Path: ptr.Ptr("file://main.go"),
+								},
+								StartLine: ptr.Ptr(int32(83)),
+								EndLine:   ptr.Ptr(int32(83)),
+							},
+						},
+						Desc:            ptr.Ptr("Use of weak random number generator (math/rand instead of crypto/rand)"),
+						FirstSeenTime:   ptr.Ptr(now.Unix()),
+						FirstSeenTimeDt: timestamppb.New(now),
+						FixAvailable:    ptr.Ptr(false),
+						IsFixAvailable:  ptr.Ptr(false),
+						LastSeenTime:    ptr.Ptr(now.Unix()),
+						LastSeenTimeDt:  timestamppb.New(now),
+						Severity:        ptr.Ptr("SEVERITY_ID_HIGH"),
+						Title:           ptr.Ptr("Use of weak random number generator (math/rand instead of crypto/rand)"),
+						VendorName:      ptr.Ptr("gosec"),
+					},
+				},
+			},
+			{
+				ActivityId:   ocsf.VulnerabilityFinding_ACTIVITY_ID_CREATE,
+				ActivityName: ptr.Ptr("ACTIVITY_ID_CREATE"),
+				CategoryName: ptr.Ptr("CATEGORY_UID_FINDINGS"),
+				CategoryUid:  ocsf.VulnerabilityFinding_CATEGORY_UID_FINDINGS,
+				ClassName:    ptr.Ptr("CLASS_UID_VULNERABILITY_FINDING"),
+				ClassUid:     ocsf.VulnerabilityFinding_CLASS_UID_VULNERABILITY_FINDING,
+				Confidence:   ptr.Ptr("CONFIDENCE_ID_UNKNOWN"),
+				ConfidenceId: ptr.Ptr(ocsf.VulnerabilityFinding_CONFIDENCE_ID_UNKNOWN),
+				Count:        ptr.Ptr(int32(1)),
+				FindingInfo: &ocsf.FindingInfo{
+					CreatedTime:   ptr.Ptr(now.Unix()),
+					CreatedTimeDt: timestamppb.New(now),
+					DataSources: []string{
+						"{\"targetType\":\"TARGET_TYPE_REPOSITORY\",\"uri\":{\"uriSchema\":\"URI_SCHEMA_FILE\",\"path\":\"file://main.go\"},\"fileFindingLocationData\":{\"startLine\":83}}",
+					},
+					Desc:            ptr.Ptr("Use of weak random number generator (math/rand instead of crypto/rand) - nil endline"),
+					FirstSeenTime:   ptr.Ptr(now.Unix()),
+					FirstSeenTimeDt: timestamppb.New(now),
+					LastSeenTime:    ptr.Ptr(now.Unix()),
+					LastSeenTimeDt:  timestamppb.New(now),
+					ModifiedTime:    ptr.Ptr(now.Unix()),
+					ModifiedTimeDt:  timestamppb.New(now),
+					Uid:             fixedUUID,
+					Title:           "Use of weak random number generator (math/rand instead of crypto/rand) - nil endline",
+				},
+				Message: ptr.Ptr("Use of weak random number generator (math/rand instead of crypto/rand) - nil endline"),
+				Metadata: &ocsf.Metadata{
+					EventCode: ptr.Ptr("G404"),
+					Product: &ocsf.Product{
+						Name: ptr.Ptr("gosec"),
+					},
+				},
+				Severity:   ptr.Ptr("SEVERITY_ID_HIGH"),
+				SeverityId: ocsf.VulnerabilityFinding_SEVERITY_ID_HIGH,
+				StartTime:  ptr.Ptr(now.Unix()),
+				StatusId:   ptr.Ptr(ocsf.VulnerabilityFinding_STATUS_ID_NEW),
+				Status:     ptr.Ptr("STATUS_ID_NEW"),
+				Time:       now.Unix(),
+				TimeDt:     timestamppb.New(now),
+				TypeName:   ptr.Ptr("Create"),
+				TypeUid:    int64(200201),
+				Vulnerabilities: []*ocsf.Vulnerability{
+					{
+						AffectedCode: []*ocsf.AffectedCode{
+							{
+								File: &ocsf.File{
+
+									Name: "main.go",
+									Path: ptr.Ptr("file://main.go"),
+								},
+								StartLine: ptr.Ptr(int32(83)),
+							},
+						},
+						AffectedPackages: nil, // on purpose, we really want to make sure this is nil as opposed to any other default value since gosec is not handling packages
+
+						Desc:            ptr.Ptr("Use of weak random number generator (math/rand instead of crypto/rand) - nil endline"),
+						FirstSeenTime:   ptr.Ptr(now.Unix()),
+						FirstSeenTimeDt: timestamppb.New(now),
+						FixAvailable:    ptr.Ptr(false),
+						IsFixAvailable:  ptr.Ptr(false),
+						LastSeenTime:    ptr.Ptr(now.Unix()),
+						LastSeenTimeDt:  timestamppb.New(now),
+						Severity:        ptr.Ptr("SEVERITY_ID_HIGH"),
+						Title:           ptr.Ptr("Use of weak random number generator (math/rand instead of crypto/rand) - nil endline"),
+						VendorName:      ptr.Ptr("gosec"),
+					},
+				},
+			},
+		}
+		transformer, err := sariftransformer.NewTransformer(&sarifOutput,
+			"",
+			sariftransformer.TargetTypeRepository,
+			clock,
+			MockUUIDProvider{FixedUUID: fixedUUID})
+		require.NoError(t, err)
+		actualIssues, err := transformer.ToOCSF(context.Background())
+
+		require.NoError(t, err)
+		require.Equal(t, len(actualIssues), len(expectedIssues))
+		// handle datasource differently see https://github.com/golang/protobuf/issues/1121
+		for i, e := range expectedIssues {
+			var expectedDataSource, actualDatasource ocsffindinginfo.DataSource
+			require.Equal(t, len(e.FindingInfo.DataSources), len(actualIssues[i].FindingInfo.DataSources))
+
+			for j, d := range e.GetFindingInfo().DataSources {
+				protojson.Unmarshal([]byte(d), &expectedDataSource)
+				protojson.Unmarshal([]byte(actualIssues[i].FindingInfo.DataSources[j]), &actualDatasource)
+				require.EqualExportedValues(t, &expectedDataSource, &actualDatasource)
+			}
+			expectedIssues[i].FindingInfo.DataSources = nil
+			actualIssues[i].FindingInfo.DataSources = nil
+		}
+		require.EqualExportedValues(t, expectedIssues, actualIssues)
+	})
+	t.Run("snyk-node testcase", func(t *testing.T) {
+		exampleOutput, err := os.ReadFile("./testdata/snyk-node_output.json")
+		require.NoError(t, err)
+		var sarifOutput sarif.SchemaJson
+		require.NoError(t, json.Unmarshal(exampleOutput, &sarifOutput))
+
+		clock := clockwork.NewFakeClockAt(staticNow)
+		now := staticNow
+		expectedIssues := []*ocsf.VulnerabilityFinding{
+			{
+				ActivityId:   ocsf.VulnerabilityFinding_ACTIVITY_ID_CREATE,
+				ActivityName: ptr.Ptr("ACTIVITY_ID_CREATE"),
+				CategoryName: ptr.Ptr("CATEGORY_UID_FINDINGS"),
+				CategoryUid:  ocsf.VulnerabilityFinding_CATEGORY_UID_FINDINGS,
+				ClassName:    ptr.Ptr("CLASS_UID_VULNERABILITY_FINDING"),
+				ClassUid:     ocsf.VulnerabilityFinding_CLASS_UID_VULNERABILITY_FINDING,
+				Confidence:   ptr.Ptr("CONFIDENCE_ID_UNKNOWN"),
+				ConfidenceId: ptr.Ptr(ocsf.VulnerabilityFinding_CONFIDENCE_ID_UNKNOWN),
+				Count:        ptr.Ptr(int32(1)),
+				FindingInfo: &ocsf.FindingInfo{
+					CreatedTime:     ptr.Ptr(now.Unix()),
+					CreatedTimeDt:   timestamppb.New(now),
+					DataSources:     []string{"{\"fileFindingLocationData\":{\"startLine\":1}}"},
+					Desc:            ptr.Ptr("(CVE-2024-47764) cookie@0.3.1"),
+					FirstSeenTime:   ptr.Ptr(now.Unix()),
+					FirstSeenTimeDt: timestamppb.New(now),
+					LastSeenTime:    ptr.Ptr(now.Unix()),
+					LastSeenTimeDt:  timestamppb.New(now),
+					ModifiedTime:    ptr.Ptr(now.Unix()),
+					ModifiedTimeDt:  timestamppb.New(now),
+					Uid:             fixedUUID,
+					Title:           "This file introduces a vulnerable cookie package with a medium severity vulnerability.",
+				},
+				Message: ptr.Ptr("This file introduces a vulnerable cookie package with a medium severity vulnerability."),
+				Metadata: &ocsf.Metadata{
+					EventCode: ptr.Ptr("SNYK-JS-COOKIE-8163060"),
+					Product: &ocsf.Product{
+						Name: ptr.Ptr("Snyk Open Source"),
+					},
+				},
+				Severity:   ptr.Ptr("SEVERITY_ID_MEDIUM"),
+				SeverityId: ocsf.VulnerabilityFinding_SEVERITY_ID_MEDIUM,
+				Time:       now.Unix(),
+				TimeDt:     timestamppb.New(now),
+				TypeName:   ptr.Ptr("Create"),
+				TypeUid:    int64(200201),
+				StartTime:  ptr.Ptr(now.Unix()),
+				StatusId:   ptr.Ptr(ocsf.VulnerabilityFinding_STATUS_ID_NEW),
+				Status:     ptr.Ptr("STATUS_ID_NEW"),
+				Vulnerabilities: []*ocsf.Vulnerability{
+					{
+						AffectedCode: []*ocsf.AffectedCode{
+							{
+								File:      &ocsf.File{},
+								StartLine: ptr.Ptr(int32(1)),
+							},
+						},
+						AffectedPackages: []*ocsf.AffectedPackage{
+							{
+								Name:           "cookie",
+								PackageManager: ptr.Ptr("npm"),
+								Purl:           ptr.Ptr("pkg:npm/cookie@0.3.1"),
+							},
+						},
+						Cve: &ocsf.Cve{
+							Desc: ptr.Ptr("(CVE-2024-47764) cookie@0.3.1"),
+							Uid:  "CVE-2024-47764",
+						},
+						Desc:            ptr.Ptr("(CVE-2024-47764) cookie@0.3.1"),
+						FirstSeenTime:   ptr.Ptr(now.Unix()),
+						FirstSeenTimeDt: timestamppb.New(now),
+						FixAvailable:    ptr.Ptr(true),
+						IsFixAvailable:  ptr.Ptr(true),
+						LastSeenTime:    ptr.Ptr(now.Unix()),
+						LastSeenTimeDt:  timestamppb.New(now),
+
+						Severity:   ptr.Ptr("SEVERITY_ID_MEDIUM"),
+						Title:      ptr.Ptr("This file introduces a vulnerable cookie package with a medium severity vulnerability."),
+						VendorName: ptr.Ptr("Snyk Open Source"),
+					},
+				},
+			},
+			{
+				ActivityId:   ocsf.VulnerabilityFinding_ACTIVITY_ID_CREATE,
+				ActivityName: ptr.Ptr("ACTIVITY_ID_CREATE"),
+				CategoryName: ptr.Ptr("CATEGORY_UID_FINDINGS"),
+				CategoryUid:  ocsf.VulnerabilityFinding_CATEGORY_UID_FINDINGS,
+				ClassName:    ptr.Ptr("CLASS_UID_VULNERABILITY_FINDING"),
+				ClassUid:     ocsf.VulnerabilityFinding_CLASS_UID_VULNERABILITY_FINDING,
+				Confidence:   ptr.Ptr("CONFIDENCE_ID_UNKNOWN"),
+				ConfidenceId: ptr.Ptr(ocsf.VulnerabilityFinding_CONFIDENCE_ID_UNKNOWN),
+				Count:        ptr.Ptr(int32(1)),
+				FindingInfo: &ocsf.FindingInfo{
+					CreatedTime:     ptr.Ptr(now.Unix()),
+					CreatedTimeDt:   timestamppb.New(now),
+					DataSources:     []string{"{\"fileFindingLocationData\":{\"startLine\":1}}"},
+					Desc:            ptr.Ptr("(CVE-2020-36048) engine.io@1.8.5"),
+					FirstSeenTime:   ptr.Ptr(now.Unix()),
+					FirstSeenTimeDt: timestamppb.New(now),
+					LastSeenTime:    ptr.Ptr(now.Unix()),
+					LastSeenTimeDt:  timestamppb.New(now),
+					ModifiedTime:    ptr.Ptr(now.Unix()),
+					ModifiedTimeDt:  timestamppb.New(now),
+					Uid:             fixedUUID,
+					Title:           "This file introduces a vulnerable engine.io package with a high severity vulnerability.",
+				},
+				Message: ptr.Ptr("This file introduces a vulnerable engine.io package with a high severity vulnerability."),
+				Metadata: &ocsf.Metadata{
+					EventCode: ptr.Ptr("SNYK-JS-ENGINEIO-1056749"),
+					Product: &ocsf.Product{
+						Name: ptr.Ptr("Snyk Open Source"),
+					},
+				},
+				Severity:   ptr.Ptr("SEVERITY_ID_HIGH"),
+				SeverityId: ocsf.VulnerabilityFinding_SEVERITY_ID_HIGH,
+				StartTime:  ptr.Ptr(now.Unix()),
+				StatusId:   ptr.Ptr(ocsf.VulnerabilityFinding_STATUS_ID_NEW),
+				Status:     ptr.Ptr("STATUS_ID_NEW"),
+				Time:       now.Unix(),
+				TimeDt:     timestamppb.New(now),
+				TypeName:   ptr.Ptr("Create"),
+				TypeUid:    int64(200201),
+				Vulnerabilities: []*ocsf.Vulnerability{
+					{
+						AffectedCode: []*ocsf.AffectedCode{
+							{
+								File:      &ocsf.File{},
+								StartLine: ptr.Ptr(int32(1)),
+							},
+						},
+						AffectedPackages: []*ocsf.AffectedPackage{
+							{
+								Name:           "engine.io",
+								PackageManager: ptr.Ptr("npm"),
+								Purl:           ptr.Ptr("pkg:npm/engine.io@1.8.5"),
+							},
+						},
+						Cve: &ocsf.Cve{
+							Desc: ptr.Ptr("(CVE-2020-36048) engine.io@1.8.5"),
+							Uid:  "CVE-2020-36048",
+						},
+						Cwe: &ocsf.Cwe{
+							Uid: "400",
+						},
+						Desc:            ptr.Ptr("(CVE-2020-36048) engine.io@1.8.5"),
+						FirstSeenTime:   ptr.Ptr(now.Unix()),
+						FirstSeenTimeDt: timestamppb.New(now),
+						FixAvailable:    ptr.Ptr(true),
+						IsFixAvailable:  ptr.Ptr(true),
+						LastSeenTime:    ptr.Ptr(now.Unix()),
+						LastSeenTimeDt:  timestamppb.New(now),
+
+						Severity:   ptr.Ptr("SEVERITY_ID_HIGH"),
+						Title:      ptr.Ptr("This file introduces a vulnerable engine.io package with a high severity vulnerability."),
+						VendorName: ptr.Ptr("Snyk Open Source"),
+					},
+				},
+			},
+			{
+				ActivityId:   ocsf.VulnerabilityFinding_ACTIVITY_ID_CREATE,
+				ActivityName: ptr.Ptr("ACTIVITY_ID_CREATE"),
+				CategoryName: ptr.Ptr("CATEGORY_UID_FINDINGS"),
+				CategoryUid:  ocsf.VulnerabilityFinding_CATEGORY_UID_FINDINGS,
+				ClassName:    ptr.Ptr("CLASS_UID_VULNERABILITY_FINDING"),
+				ClassUid:     ocsf.VulnerabilityFinding_CLASS_UID_VULNERABILITY_FINDING,
+				Confidence:   ptr.Ptr("CONFIDENCE_ID_UNKNOWN"),
+				ConfidenceId: ptr.Ptr(ocsf.VulnerabilityFinding_CONFIDENCE_ID_UNKNOWN),
+				Count:        ptr.Ptr(int32(1)),
+				FindingInfo: &ocsf.FindingInfo{
+					CreatedTime:     ptr.Ptr(now.Unix()),
+					CreatedTimeDt:   timestamppb.New(now),
+					DataSources:     []string{"{\"fileFindingLocationData\":{\"startLine\":1}}"},
+					Desc:            ptr.Ptr("(CVE-2022-41940) engine.io@1.8.5"),
+					FirstSeenTime:   ptr.Ptr(now.Unix()),
+					FirstSeenTimeDt: timestamppb.New(now),
+					LastSeenTime:    ptr.Ptr(now.Unix()),
+					LastSeenTimeDt:  timestamppb.New(now),
+					ModifiedTime:    ptr.Ptr(now.Unix()),
+					ModifiedTimeDt:  timestamppb.New(now),
+					Uid:             fixedUUID,
+					Title:           "This file introduces a vulnerable engine.io package with a high severity vulnerability.",
+				},
+				Message: ptr.Ptr("This file introduces a vulnerable engine.io package with a high severity vulnerability."),
+				Metadata: &ocsf.Metadata{
+					EventCode: ptr.Ptr("SNYK-JS-ENGINEIO-3136336"),
+					Product: &ocsf.Product{
+						Name: ptr.Ptr("Snyk Open Source"),
+					},
+				},
+				Severity:   ptr.Ptr("SEVERITY_ID_HIGH"),
+				SeverityId: ocsf.VulnerabilityFinding_SEVERITY_ID_HIGH,
+				StartTime:  ptr.Ptr(now.Unix()),
+				StatusId:   ptr.Ptr(ocsf.VulnerabilityFinding_STATUS_ID_NEW),
+				Status:     ptr.Ptr("STATUS_ID_NEW"),
+				Time:       now.Unix(),
+				TimeDt:     timestamppb.New(now),
+				TypeName:   ptr.Ptr("Create"),
+				TypeUid:    int64(200201),
+				Vulnerabilities: []*ocsf.Vulnerability{
+					{
+						AffectedCode: []*ocsf.AffectedCode{
+							{
+								File:      &ocsf.File{},
+								StartLine: ptr.Ptr(int32(1)),
+							},
+						},
+						AffectedPackages: []*ocsf.AffectedPackage{
+							{
+								Name:           "engine.io",
+								PackageManager: ptr.Ptr("npm"),
+								Purl:           ptr.Ptr("pkg:npm/engine.io@1.8.5"),
+							},
+						},
+						Cve: &ocsf.Cve{
+							Desc: ptr.Ptr("(CVE-2022-41940) engine.io@1.8.5"),
+							Uid:  "CVE-2022-41940",
+						},
+						Cwe: &ocsf.Cwe{
+							Uid: "400",
+						},
+						Desc:            ptr.Ptr("(CVE-2022-41940) engine.io@1.8.5"),
+						FirstSeenTime:   ptr.Ptr(now.Unix()),
+						FirstSeenTimeDt: timestamppb.New(now),
+						FixAvailable:    ptr.Ptr(true),
+						IsFixAvailable:  ptr.Ptr(true),
+						LastSeenTime:    ptr.Ptr(now.Unix()),
+						LastSeenTimeDt:  timestamppb.New(now),
+
+						Severity:   ptr.Ptr("SEVERITY_ID_HIGH"),
+						Title:      ptr.Ptr("This file introduces a vulnerable engine.io package with a high severity vulnerability."),
+						VendorName: ptr.Ptr("Snyk Open Source"),
+					},
+				},
+			},
+		}
+		transformer, err := sariftransformer.NewTransformer(&sarifOutput, "npm", sariftransformer.TargetTypeDependency, clock, MockUUIDProvider{FixedUUID: fixedUUID})
+		require.NoError(t, err)
+		actualIssues, err := transformer.ToOCSF(context.Background())
+
+		require.NoError(t, err)
+		require.Equal(t, len(actualIssues), len(expectedIssues))
+		// handle datasource differently see https://github.com/golang/protobuf/issues/1121
+		for i, e := range expectedIssues {
+			var expectedDataSource, actualDatasource ocsffindinginfo.DataSource
+			require.Equal(t, len(e.FindingInfo.DataSources), len(actualIssues[i].FindingInfo.DataSources))
+
+			for j, d := range e.GetFindingInfo().DataSources {
+				protojson.Unmarshal([]byte(d), &expectedDataSource)
+				protojson.Unmarshal([]byte(actualIssues[i].FindingInfo.DataSources[j]), &actualDatasource)
+				require.EqualExportedValues(t, &expectedDataSource, &actualDatasource)
+			}
+			expectedIssues[i].FindingInfo.DataSources = nil
+			actualIssues[i].FindingInfo.DataSources = nil
+		}
+		require.EqualExportedValues(t, expectedIssues, actualIssues)
+
+	})
+	t.Run("codeql testcase", func(t *testing.T) {
+		exampleOutput, err := os.ReadFile("./testdata/code-ql.sarif.json")
+		require.NoError(t, err)
+		var sarifOutput sarif.SchemaJson
+		require.NoError(t, json.Unmarshal(exampleOutput, &sarifOutput))
+
+		clock := clockwork.NewFakeClockAt(staticNow)
+		now := staticNow
+		expectedIssues := []*ocsf.VulnerabilityFinding{
+			{
+				ActivityId:   ocsf.VulnerabilityFinding_ACTIVITY_ID_CREATE,
+				ActivityName: ptr.Ptr("ACTIVITY_ID_CREATE"),
+				CategoryName: ptr.Ptr("CATEGORY_UID_FINDINGS"),
+				CategoryUid:  ocsf.VulnerabilityFinding_CATEGORY_UID_FINDINGS,
+				ClassName:    ptr.Ptr("CLASS_UID_VULNERABILITY_FINDING"),
+				ClassUid:     ocsf.VulnerabilityFinding_CLASS_UID_VULNERABILITY_FINDING,
+				Confidence:   ptr.Ptr("CONFIDENCE_ID_HIGH"),
+				ConfidenceId: ptr.Ptr(ocsf.VulnerabilityFinding_CONFIDENCE_ID_HIGH),
+				Count:        ptr.Ptr(int32(1)),
+				FindingInfo: &ocsf.FindingInfo{
+					CreatedTime:   ptr.Ptr(now.Unix()),
+					CreatedTimeDt: timestamppb.New(now),
+					DataSources: []string{
+						"{\"targetType\":\"TARGET_TYPE_REPOSITORY\", \"uri\":{\"uriSchema\":\"URI_SCHEMA_FILE\", \"path\":\"file://components/consumers/defectdojo/main.go\"}, \"fileFindingLocationData\":{\"startLine\":53, \"startColumn\":103, \"endColumn\":117}}",
+					},
+					Desc:            ptr.Ptr("Converting the result of `strconv.Atoi`, `strconv.ParseInt`, and `strconv.ParseUint` to integer types of smaller bit size can produce unexpected values."),
+					FirstSeenTime:   ptr.Ptr(now.Unix()),
+					FirstSeenTimeDt: timestamppb.New(now),
+					LastSeenTime:    ptr.Ptr(now.Unix()),
+					LastSeenTimeDt:  timestamppb.New(now),
+					ModifiedTime:    ptr.Ptr(now.Unix()),
+					ModifiedTimeDt:  timestamppb.New(now),
+					Uid:             fixedUUID,
+					Title:           "go/incorrect-integer-conversion",
+				},
+				Message: ptr.Ptr("Incorrect conversion of an integer with architecture-dependent bit size from [strconv.Atoi](1) to a lower bit size type int32 without an upper bound check."),
+				Metadata: &ocsf.Metadata{
+					EventCode: ptr.Ptr("go/incorrect-integer-conversion"),
+					Product: &ocsf.Product{
+						Name: ptr.Ptr("CodeQL"),
+					},
+				},
+				Severity:   ptr.Ptr("SEVERITY_ID_MEDIUM"),
+				SeverityId: ocsf.VulnerabilityFinding_SEVERITY_ID_MEDIUM,
+				Time:       now.Unix(),
+				TimeDt:     timestamppb.New(now),
+				TypeName:   ptr.Ptr("Create"),
+				TypeUid:    int64(200201),
+				StartTime:  ptr.Ptr(now.Unix()),
+				StatusId:   ptr.Ptr(ocsf.VulnerabilityFinding_STATUS_ID_NEW),
+				Status:     ptr.Ptr("STATUS_ID_NEW"),
+				Vulnerabilities: []*ocsf.Vulnerability{
+					{
+						AffectedCode: []*ocsf.AffectedCode{
+							{
+								File: &ocsf.File{
+									Name: "components/consumers/defectdojo/main.go",
+									Path: ptr.Ptr("file://components/consumers/defectdojo/main.go"),
+								},
+								StartLine: ptr.Ptr(int32(53)),
+							},
+						},
+						Cwe: &ocsf.Cwe{
+							Uid: "190",
+						},
+						Desc:            ptr.Ptr("Converting the result of `strconv.Atoi`, `strconv.ParseInt`, and `strconv.ParseUint` to integer types of smaller bit size can produce unexpected values."),
+						FirstSeenTime:   ptr.Ptr(now.Unix()),
+						FirstSeenTimeDt: timestamppb.New(now),
+						FixAvailable:    ptr.Ptr(false),
+						IsFixAvailable:  ptr.Ptr(false),
+						LastSeenTime:    ptr.Ptr(now.Unix()),
+						LastSeenTimeDt:  timestamppb.New(now),
+						Severity:        ptr.Ptr("SEVERITY_ID_MEDIUM"),
+						Title:           ptr.Ptr("go/incorrect-integer-conversion"),
+						VendorName:      ptr.Ptr("CodeQL"),
+					},
+				},
+			},
+			{
+				ActivityId:   ocsf.VulnerabilityFinding_ACTIVITY_ID_CREATE,
+				ActivityName: ptr.Ptr("ACTIVITY_ID_CREATE"),
+				CategoryName: ptr.Ptr("CATEGORY_UID_FINDINGS"),
+				CategoryUid:  ocsf.VulnerabilityFinding_CATEGORY_UID_FINDINGS,
+				ClassName:    ptr.Ptr("CLASS_UID_VULNERABILITY_FINDING"),
+				ClassUid:     ocsf.VulnerabilityFinding_CLASS_UID_VULNERABILITY_FINDING,
+				Confidence:   ptr.Ptr("CONFIDENCE_ID_HIGH"),
+				ConfidenceId: ptr.Ptr(ocsf.VulnerabilityFinding_CONFIDENCE_ID_HIGH),
+				Count:        ptr.Ptr(int32(1)),
+				FindingInfo: &ocsf.FindingInfo{
+					CreatedTime:   ptr.Ptr(now.Unix()),
+					CreatedTimeDt: timestamppb.New(now),
+					DataSources: []string{
+						"{\"targetType\":\"TARGET_TYPE_REPOSITORY\", \"uri\":{\"uriSchema\":\"URI_SCHEMA_FILE\", \"path\":\"file://components/consumers/defectdojo/main.go\"}, \"fileFindingLocationData\":{\"startLine\":106, \"startColumn\":103, \"endColumn\":117}}",
+					},
+					Desc:            ptr.Ptr("Converting the result of `strconv.Atoi`, `strconv.ParseInt`, and `strconv.ParseUint` to integer types of smaller bit size can produce unexpected values."),
+					FirstSeenTime:   ptr.Ptr(now.Unix()),
+					FirstSeenTimeDt: timestamppb.New(now),
+					LastSeenTime:    ptr.Ptr(now.Unix()),
+					LastSeenTimeDt:  timestamppb.New(now),
+					ModifiedTime:    ptr.Ptr(now.Unix()),
+					ModifiedTimeDt:  timestamppb.New(now),
+					Uid:             fixedUUID,
+					Title:           "go/incorrect-integer-conversion",
+				},
+				Message: ptr.Ptr("Incorrect conversion of an integer with architecture-dependent bit size from [strconv.Atoi](1) to a lower bit size type int32 without an upper bound check."),
+				Metadata: &ocsf.Metadata{
+					EventCode: ptr.Ptr("go/incorrect-integer-conversion"),
+					Product: &ocsf.Product{
+						Name: ptr.Ptr("CodeQL"),
+					},
+				},
+				Severity:   ptr.Ptr("SEVERITY_ID_MEDIUM"),
+				SeverityId: ocsf.VulnerabilityFinding_SEVERITY_ID_MEDIUM,
+				Time:       now.Unix(),
+				TimeDt:     timestamppb.New(now),
+				TypeName:   ptr.Ptr("Create"),
+				TypeUid:    int64(200201),
+				StartTime:  ptr.Ptr(now.Unix()),
+				StatusId:   ptr.Ptr(ocsf.VulnerabilityFinding_STATUS_ID_NEW),
+				Status:     ptr.Ptr("STATUS_ID_NEW"),
+				Vulnerabilities: []*ocsf.Vulnerability{
+					{
+						AffectedCode: []*ocsf.AffectedCode{
+							{
+								File: &ocsf.File{
+									Name: "components/consumers/defectdojo/main.go",
+									Path: ptr.Ptr("file://components/consumers/defectdojo/main.go"),
+								},
+								StartLine: ptr.Ptr(int32(106)),
+							},
+						},
+						Cwe: &ocsf.Cwe{
+							Uid: "190",
+						},
+						Desc:            ptr.Ptr("Converting the result of `strconv.Atoi`, `strconv.ParseInt`, and `strconv.ParseUint` to integer types of smaller bit size can produce unexpected values."),
+						FirstSeenTime:   ptr.Ptr(now.Unix()),
+						FirstSeenTimeDt: timestamppb.New(now),
+						FixAvailable:    ptr.Ptr(false),
+						IsFixAvailable:  ptr.Ptr(false),
+						LastSeenTime:    ptr.Ptr(now.Unix()),
+						LastSeenTimeDt:  timestamppb.New(now),
+						Severity:        ptr.Ptr("SEVERITY_ID_MEDIUM"),
+						Title:           ptr.Ptr("go/incorrect-integer-conversion"),
+						VendorName:      ptr.Ptr("CodeQL"),
+					},
+				},
+			},
+			{
+				ActivityId:   ocsf.VulnerabilityFinding_ACTIVITY_ID_CREATE,
+				ActivityName: ptr.Ptr("ACTIVITY_ID_CREATE"),
+				CategoryName: ptr.Ptr("CATEGORY_UID_FINDINGS"),
+				CategoryUid:  ocsf.VulnerabilityFinding_CATEGORY_UID_FINDINGS,
+				ClassName:    ptr.Ptr("CLASS_UID_VULNERABILITY_FINDING"),
+				ClassUid:     ocsf.VulnerabilityFinding_CLASS_UID_VULNERABILITY_FINDING,
+				Confidence:   ptr.Ptr("CONFIDENCE_ID_HIGH"),
+				ConfidenceId: ptr.Ptr(ocsf.VulnerabilityFinding_CONFIDENCE_ID_HIGH),
+				Count:        ptr.Ptr(int32(1)),
+				FindingInfo: &ocsf.FindingInfo{
+					CreatedTime:   ptr.Ptr(now.Unix()),
+					CreatedTimeDt: timestamppb.New(now),
+					DataSources: []string{
+						"{\"targetType\":\"TARGET_TYPE_REPOSITORY\", \"uri\":{\"uriSchema\":\"URI_SCHEMA_FILE\", \"path\":\"file://components/producers/github-codeql/main.go\"}, \"fileFindingLocationData\":{\"startLine\":209, \"startColumn\":24, \"endColumn\":34}}",
+					},
+					Desc:            ptr.Ptr("Converting the result of `strconv.Atoi`, `strconv.ParseInt`, and `strconv.ParseUint` to integer types of smaller bit size can produce unexpected values."),
+					FirstSeenTime:   ptr.Ptr(now.Unix()),
+					FirstSeenTimeDt: timestamppb.New(now),
+					LastSeenTime:    ptr.Ptr(now.Unix()),
+					LastSeenTimeDt:  timestamppb.New(now),
+					ModifiedTime:    ptr.Ptr(now.Unix()),
+					ModifiedTimeDt:  timestamppb.New(now),
+					Uid:             fixedUUID,
+					Title:           "go/incorrect-integer-conversion",
+				},
+				Message: ptr.Ptr("Incorrect conversion of an integer with architecture-dependent bit size from [strconv.Atoi](1) to a lower bit size type int32 without an upper bound check."),
+				Metadata: &ocsf.Metadata{
+					EventCode: ptr.Ptr("go/incorrect-integer-conversion"),
+					Product: &ocsf.Product{
+						Name: ptr.Ptr("CodeQL"),
+					},
+				},
+				Severity:   ptr.Ptr("SEVERITY_ID_MEDIUM"),
+				SeverityId: ocsf.VulnerabilityFinding_SEVERITY_ID_MEDIUM,
+				Time:       now.Unix(),
+				TimeDt:     timestamppb.New(now),
+				TypeName:   ptr.Ptr("Create"),
+				TypeUid:    int64(200201),
+				StartTime:  ptr.Ptr(now.Unix()),
+				StatusId:   ptr.Ptr(ocsf.VulnerabilityFinding_STATUS_ID_NEW),
+				Status:     ptr.Ptr("STATUS_ID_NEW"),
+				Vulnerabilities: []*ocsf.Vulnerability{
+					{
+						AffectedCode: []*ocsf.AffectedCode{
+							{
+								File: &ocsf.File{
+									Name: "components/producers/github-codeql/main.go",
+									Path: ptr.Ptr("file://components/producers/github-codeql/main.go"),
+								},
+								StartLine: ptr.Ptr(int32(209)),
+							},
+						},
+						Cwe: &ocsf.Cwe{
+							Uid: "190",
+						},
+						Desc:            ptr.Ptr("Converting the result of `strconv.Atoi`, `strconv.ParseInt`, and `strconv.ParseUint` to integer types of smaller bit size can produce unexpected values."),
+						FirstSeenTime:   ptr.Ptr(now.Unix()),
+						FirstSeenTimeDt: timestamppb.New(now),
+						FixAvailable:    ptr.Ptr(false),
+						IsFixAvailable:  ptr.Ptr(false),
+						LastSeenTime:    ptr.Ptr(now.Unix()),
+						LastSeenTimeDt:  timestamppb.New(now),
+						Severity:        ptr.Ptr("SEVERITY_ID_MEDIUM"),
+						Title:           ptr.Ptr("go/incorrect-integer-conversion"),
+						VendorName:      ptr.Ptr("CodeQL"),
+					},
+				},
+			},
+		}
+		transformer, err := sariftransformer.NewTransformer(&sarifOutput, "", sariftransformer.TargetTypeRepository, clock, MockUUIDProvider{FixedUUID: fixedUUID})
+		require.NoError(t, err)
+		actualIssues, err := transformer.ToOCSF(context.Background())
+		require.NoError(t, err)
+		require.Equal(t, len(actualIssues), len(expectedIssues))
+		// handle datasource differently see https://github.com/golang/protobuf/issues/1121
+		for i, e := range expectedIssues {
+			var expectedDataSource, actualDatasource ocsffindinginfo.DataSource
+			require.Equal(t, len(e.FindingInfo.DataSources), len(actualIssues[i].FindingInfo.DataSources))
+
+			for j, d := range e.GetFindingInfo().DataSources {
+				protojson.Unmarshal([]byte(d), &expectedDataSource)
+				protojson.Unmarshal([]byte(actualIssues[i].FindingInfo.DataSources[j]), &actualDatasource)
+				require.EqualExportedValues(t, &expectedDataSource, &actualDatasource)
+			}
+			expectedIssues[i].FindingInfo.DataSources = nil
+			actualIssues[i].FindingInfo.DataSources = nil
+		}
+		require.EqualExportedValues(t, expectedIssues, actualIssues)
+
+	})
+	t.Run("semgrep testcase", func(t *testing.T) {
+		exampleOutput, err := os.ReadFile("./testdata/semgrep.sarif.json")
+		require.NoError(t, err)
+		var sarifOutput sarif.SchemaJson
+		require.NoError(t, json.Unmarshal(exampleOutput, &sarifOutput))
+
+		clock := clockwork.NewFakeClockAt(staticNow)
+		now := staticNow
+		expectedIssues := []*ocsf.VulnerabilityFinding{
+			{
+				ActivityId:   ocsf.VulnerabilityFinding_ACTIVITY_ID_CREATE,
+				ActivityName: ptr.Ptr("ACTIVITY_ID_CREATE"),
+				CategoryName: ptr.Ptr("CATEGORY_UID_FINDINGS"),
+				CategoryUid:  ocsf.VulnerabilityFinding_CATEGORY_UID_FINDINGS,
+				ClassName:    ptr.Ptr("CLASS_UID_VULNERABILITY_FINDING"),
+				ClassUid:     ocsf.VulnerabilityFinding_CLASS_UID_VULNERABILITY_FINDING,
+				Confidence:   ptr.Ptr("CONFIDENCE_ID_UNKNOWN"),
+				ConfidenceId: ptr.Ptr(ocsf.VulnerabilityFinding_CONFIDENCE_ID_UNKNOWN),
+				Count:        ptr.Ptr(int32(1)),
+				FindingInfo: &ocsf.FindingInfo{
+					CreatedTime:   ptr.Ptr(now.Unix()),
+					CreatedTimeDt: timestamppb.New(now),
+					DataSources: []string{
+						"{\"targetType\":\"TARGET_TYPE_REPOSITORY\", \"uri\":{\"uriSchema\":\"URI_SCHEMA_FILE\", \"path\":\"file://terragoat/terraform/aws/ec2.tf\"}, \"fileFindingLocationData\":{\"startLine\":15, \"endLine\":15, \"startColumn\":26, \"endColumn\":46}}",
+					},
+					Desc:            ptr.Ptr("AWS Access Key ID Value detected. This is a sensitive credential and should not be hardcoded here. Instead, read this value from an environment variable or keep it in a separate, private file."),
+					FirstSeenTime:   ptr.Ptr(now.Unix()),
+					FirstSeenTimeDt: timestamppb.New(now),
+					LastSeenTime:    ptr.Ptr(now.Unix()),
+					LastSeenTimeDt:  timestamppb.New(now),
+					ModifiedTime:    ptr.Ptr(now.Unix()),
+					ModifiedTimeDt:  timestamppb.New(now),
+					Uid:             fixedUUID,
+					Title:           "generic.secrets.security.detected-aws-access-key-id-value.detected-aws-access-key-id-value",
+				},
+				Message: ptr.Ptr("AWS Access Key ID Value detected. This is a sensitive credential and should not be hardcoded here. Instead, read this value from an environment variable or keep it in a separate, private file."),
+				Metadata: &ocsf.Metadata{
+					EventCode: ptr.Ptr("generic.secrets.security.detected-aws-access-key-id-value.detected-aws-access-key-id-value"),
+					Product: &ocsf.Product{
+						Name: ptr.Ptr("Semgrep OSS"),
+					},
+					Labels: []string{"{}"},
+				},
+				Severity:   ptr.Ptr("SEVERITY_ID_MEDIUM"),
+				SeverityId: ocsf.VulnerabilityFinding_SEVERITY_ID_MEDIUM,
+				Time:       now.Unix(),
+				TimeDt:     timestamppb.New(now),
+				TypeName:   ptr.Ptr("Create"),
+				TypeUid:    int64(200201),
+				StartTime:  ptr.Ptr(now.Unix()),
+				StatusId:   ptr.Ptr(ocsf.VulnerabilityFinding_STATUS_ID_NEW),
+				Status:     ptr.Ptr("STATUS_ID_NEW"),
+				Vulnerabilities: []*ocsf.Vulnerability{
+					{
+						AffectedCode: []*ocsf.AffectedCode{
+							{
+								File: &ocsf.File{
+									Name: "terragoat/terraform/aws/ec2.tf",
+									Path: ptr.Ptr("file://terragoat/terraform/aws/ec2.tf"),
+								},
+								StartLine: ptr.Ptr(int32(15)),
+								EndLine:   ptr.Ptr(int32(15)),
+							},
+						},
+						Cwe: &ocsf.Cwe{
+							Uid: "798",
+						},
+						Desc:            ptr.Ptr("AWS Access Key ID Value detected. This is a sensitive credential and should not be hardcoded here. Instead, read this value from an environment variable or keep it in a separate, private file."),
+						FirstSeenTime:   ptr.Ptr(now.Unix()),
+						FirstSeenTimeDt: timestamppb.New(now),
+						FixAvailable:    ptr.Ptr(false),
+						IsFixAvailable:  ptr.Ptr(false),
+						LastSeenTime:    ptr.Ptr(now.Unix()),
+						LastSeenTimeDt:  timestamppb.New(now),
+						Severity:        ptr.Ptr("SEVERITY_ID_MEDIUM"),
+						Title:           ptr.Ptr("generic.secrets.security.detected-aws-access-key-id-value.detected-aws-access-key-id-value"),
+						VendorName:      ptr.Ptr("Semgrep OSS"),
+					},
+				},
+			},
+			{
+				ActivityId:   ocsf.VulnerabilityFinding_ACTIVITY_ID_CREATE,
+				ActivityName: ptr.Ptr("ACTIVITY_ID_CREATE"),
+				CategoryName: ptr.Ptr("CATEGORY_UID_FINDINGS"),
+				CategoryUid:  ocsf.VulnerabilityFinding_CATEGORY_UID_FINDINGS,
+				ClassName:    ptr.Ptr("CLASS_UID_VULNERABILITY_FINDING"),
+				ClassUid:     ocsf.VulnerabilityFinding_CLASS_UID_VULNERABILITY_FINDING,
+				Confidence:   ptr.Ptr("CONFIDENCE_ID_UNKNOWN"),
+				ConfidenceId: ptr.Ptr(ocsf.VulnerabilityFinding_CONFIDENCE_ID_UNKNOWN),
+				Count:        ptr.Ptr(int32(1)),
+				FindingInfo: &ocsf.FindingInfo{
+					CreatedTime:   ptr.Ptr(now.Unix()),
+					CreatedTimeDt: timestamppb.New(now),
+					DataSources: []string{
+						"{\"targetType\":\"TARGET_TYPE_REPOSITORY\", \"uri\":{\"uriSchema\":\"URI_SCHEMA_FILE\", \"path\":\"file://govwa/user/session/session.go\"}, \"fileFindingLocationData\":{\"startLine\":27, \"endLine\":31, \"startColumn\":20, \"endColumn\":3}}",
+					},
+					Desc:            ptr.Ptr("A session cookie was detected without setting the 'HttpOnly' flag. The 'HttpOnly' flag for cookies instructs the browser to forbid client-side scripts from reading the cookie which mitigates XSS attacks. Set the 'HttpOnly' flag by setting 'HttpOnly' to 'true' in the Options struct."),
+					FirstSeenTime:   ptr.Ptr(now.Unix()),
+					FirstSeenTimeDt: timestamppb.New(now),
+					LastSeenTime:    ptr.Ptr(now.Unix()),
+					LastSeenTimeDt:  timestamppb.New(now),
+					ModifiedTime:    ptr.Ptr(now.Unix()),
+					ModifiedTimeDt:  timestamppb.New(now),
+					Uid:             fixedUUID,
+					Title:           "go.gorilla.security.audit.session-cookie-missing-httponly.session-cookie-missing-httponly",
+				},
+				Message: ptr.Ptr("A session cookie was detected without setting the 'HttpOnly' flag. The 'HttpOnly' flag for cookies instructs the browser to forbid client-side scripts from reading the cookie which mitigates XSS attacks. Set the 'HttpOnly' flag by setting 'HttpOnly' to 'true' in the Options struct."),
+				Metadata: &ocsf.Metadata{
+					EventCode: ptr.Ptr("go.gorilla.security.audit.session-cookie-missing-httponly.session-cookie-missing-httponly"),
+					Product: &ocsf.Product{
+						Name: ptr.Ptr("Semgrep OSS"),
+					},
+					Labels: []string{"{}"},
+				},
+				Severity:   ptr.Ptr("SEVERITY_ID_MEDIUM"),
+				SeverityId: ocsf.VulnerabilityFinding_SEVERITY_ID_MEDIUM,
+				Time:       now.Unix(),
+				TimeDt:     timestamppb.New(now),
+				TypeName:   ptr.Ptr("Create"),
+				TypeUid:    int64(200201),
+				StartTime:  ptr.Ptr(now.Unix()),
+				StatusId:   ptr.Ptr(ocsf.VulnerabilityFinding_STATUS_ID_NEW),
+				Status:     ptr.Ptr("STATUS_ID_NEW"),
+				Vulnerabilities: []*ocsf.Vulnerability{
+					{
+						AffectedCode: []*ocsf.AffectedCode{
+							{
+								File: &ocsf.File{
+									Name: "govwa/user/session/session.go",
+									Path: ptr.Ptr("file://govwa/user/session/session.go"),
+								},
+								StartLine: ptr.Ptr(int32(27)),
+								EndLine:   ptr.Ptr(int32(31)),
+							},
+						},
+						Cwe: &ocsf.Cwe{
+							Uid: "1004",
+						},
+						Desc:            ptr.Ptr("A session cookie was detected without setting the 'HttpOnly' flag. The 'HttpOnly' flag for cookies instructs the browser to forbid client-side scripts from reading the cookie which mitigates XSS attacks. Set the 'HttpOnly' flag by setting 'HttpOnly' to 'true' in the Options struct."),
+						FirstSeenTime:   ptr.Ptr(now.Unix()),
+						FirstSeenTimeDt: timestamppb.New(now),
+						FixAvailable:    ptr.Ptr(true),
+						IsFixAvailable:  ptr.Ptr(true),
+						LastSeenTime:    ptr.Ptr(now.Unix()),
+						LastSeenTimeDt:  timestamppb.New(now),
+						Severity:        ptr.Ptr("SEVERITY_ID_MEDIUM"),
+						Title:           ptr.Ptr("go.gorilla.security.audit.session-cookie-missing-httponly.session-cookie-missing-httponly"),
+						VendorName:      ptr.Ptr("Semgrep OSS"),
+					},
+				},
+			},
+			{
+				ActivityId:   ocsf.VulnerabilityFinding_ACTIVITY_ID_CREATE,
+				ActivityName: ptr.Ptr("ACTIVITY_ID_CREATE"),
+				CategoryName: ptr.Ptr("CATEGORY_UID_FINDINGS"),
+				CategoryUid:  ocsf.VulnerabilityFinding_CATEGORY_UID_FINDINGS,
+				ClassName:    ptr.Ptr("CLASS_UID_VULNERABILITY_FINDING"),
+				ClassUid:     ocsf.VulnerabilityFinding_CLASS_UID_VULNERABILITY_FINDING,
+				Confidence:   ptr.Ptr("CONFIDENCE_ID_UNKNOWN"),
+				ConfidenceId: ptr.Ptr(ocsf.VulnerabilityFinding_CONFIDENCE_ID_UNKNOWN),
+				Count:        ptr.Ptr(int32(1)),
+				FindingInfo: &ocsf.FindingInfo{
+					CreatedTime:   ptr.Ptr(now.Unix()),
+					CreatedTimeDt: timestamppb.New(now),
+					DataSources: []string{
+						"{\"targetType\":\"TARGET_TYPE_REPOSITORY\", \"uri\":{\"uriSchema\":\"URI_SCHEMA_FILE\", \"path\":\"file://go-dvwa/vulnerable/system.go\"}, \"fileFindingLocationData\":{\"startLine\":9, \"endLine\":9, \"startColumn\":9, \"endColumn\":50}}",
+					},
+					Desc:            ptr.Ptr("Detected non-static command inside Command. Audit the input to 'exec.Command'. If unverified user data can reach this call site, this is a code injection vulnerability. A malicious actor can inject a malicious script to execute arbitrary code."),
+					FirstSeenTime:   ptr.Ptr(now.Unix()),
+					FirstSeenTimeDt: timestamppb.New(now),
+					LastSeenTime:    ptr.Ptr(now.Unix()),
+					LastSeenTimeDt:  timestamppb.New(now),
+					ModifiedTime:    ptr.Ptr(now.Unix()),
+					ModifiedTimeDt:  timestamppb.New(now),
+					Uid:             fixedUUID,
+					Title:           "go.lang.security.audit.dangerous-exec-command.dangerous-exec-command",
+				},
+				Message: ptr.Ptr("Detected non-static command inside Command. Audit the input to 'exec.Command'. If unverified user data can reach this call site, this is a code injection vulnerability. A malicious actor can inject a malicious script to execute arbitrary code."),
+				Metadata: &ocsf.Metadata{
+					EventCode: ptr.Ptr("go.lang.security.audit.dangerous-exec-command.dangerous-exec-command"),
+					Product: &ocsf.Product{
+						Name: ptr.Ptr("Semgrep OSS"),
+					},
+					Labels: []string{"{}"},
+				},
+				Severity:   ptr.Ptr("SEVERITY_ID_MEDIUM"),
+				SeverityId: ocsf.VulnerabilityFinding_SEVERITY_ID_MEDIUM,
+				Time:       now.Unix(),
+				TimeDt:     timestamppb.New(now),
+				TypeName:   ptr.Ptr("Create"),
+				TypeUid:    int64(200201),
+				StartTime:  ptr.Ptr(now.Unix()),
+				StatusId:   ptr.Ptr(ocsf.VulnerabilityFinding_STATUS_ID_NEW),
+				Status:     ptr.Ptr("STATUS_ID_NEW"),
+				Vulnerabilities: []*ocsf.Vulnerability{
+					{
+						AffectedCode: []*ocsf.AffectedCode{
+							{
+								File: &ocsf.File{
+									Name: "go-dvwa/vulnerable/system.go",
+									Path: ptr.Ptr("file://go-dvwa/vulnerable/system.go"),
+								},
+								StartLine: ptr.Ptr(int32(9)),
+								EndLine:   ptr.Ptr(int32(9)),
+							},
+						},
+						Desc:            ptr.Ptr("Detected non-static command inside Command. Audit the input to 'exec.Command'. If unverified user data can reach this call site, this is a code injection vulnerability. A malicious actor can inject a malicious script to execute arbitrary code."),
+						FirstSeenTime:   ptr.Ptr(now.Unix()),
+						FirstSeenTimeDt: timestamppb.New(now),
+						FixAvailable:    ptr.Ptr(false),
+						IsFixAvailable:  ptr.Ptr(false),
+						LastSeenTime:    ptr.Ptr(now.Unix()),
+						LastSeenTimeDt:  timestamppb.New(now),
+						Severity:        ptr.Ptr("SEVERITY_ID_MEDIUM"),
+						Title:           ptr.Ptr("go.lang.security.audit.dangerous-exec-command.dangerous-exec-command"),
+						VendorName:      ptr.Ptr("Semgrep OSS"),
+					},
+				},
+			},
+		}
+		transformer, err := sariftransformer.NewTransformer(&sarifOutput, "", sariftransformer.TargetTypeRepository, clock, MockUUIDProvider{FixedUUID: fixedUUID})
+		require.NoError(t, err)
+		actualIssues, err := transformer.ToOCSF(context.Background())
+		require.NoError(t, err)
+		require.Equal(t, len(actualIssues), len(expectedIssues))
+		// handle datasource differently see https://github.com/golang/protobuf/issues/1121
+		for i, e := range expectedIssues {
+			var expectedDataSource, actualDatasource ocsffindinginfo.DataSource
+			require.Equal(t, len(e.FindingInfo.DataSources), len(actualIssues[i].FindingInfo.DataSources))
+
+			for j, d := range e.GetFindingInfo().DataSources {
+				protojson.Unmarshal([]byte(d), &expectedDataSource)
+				protojson.Unmarshal([]byte(actualIssues[i].FindingInfo.DataSources[j]), &actualDatasource)
+				require.EqualExportedValues(t, &expectedDataSource, &actualDatasource)
+			}
+			expectedIssues[i].FindingInfo.DataSources = nil
+			actualIssues[i].FindingInfo.DataSources = nil
+		}
+		require.EqualExportedValues(t, expectedIssues, actualIssues)
+
+	})
+	t.Run("trivy testcase", func(t *testing.T) {
+		exampleOutput, err := os.ReadFile("./testdata/trivy_output.json")
+		require.NoError(t, err)
+		var sarifOutput sarif.SchemaJson
+		require.NoError(t, json.Unmarshal(exampleOutput, &sarifOutput))
+
+		clock := clockwork.NewFakeClockAt(staticNow)
+		now := staticNow
+		expectedIssues := []*ocsf.VulnerabilityFinding{
+			{
+				ActivityId:   ocsf.VulnerabilityFinding_ACTIVITY_ID_CREATE,
+				ActivityName: ptr.Ptr("ACTIVITY_ID_CREATE"),
+				CategoryName: ptr.Ptr("CATEGORY_UID_FINDINGS"),
+				CategoryUid:  ocsf.VulnerabilityFinding_CATEGORY_UID_FINDINGS,
+				ClassName:    ptr.Ptr("CLASS_UID_VULNERABILITY_FINDING"),
+				ClassUid:     ocsf.VulnerabilityFinding_CLASS_UID_VULNERABILITY_FINDING,
+				Confidence:   ptr.Ptr("CONFIDENCE_ID_UNKNOWN"),
+				ConfidenceId: ptr.Ptr(ocsf.VulnerabilityFinding_CONFIDENCE_ID_UNKNOWN),
+				Count:        ptr.Ptr(int32(1)),
+				FindingInfo: &ocsf.FindingInfo{
+					CreatedTime:   ptr.Ptr(now.Unix()),
+					CreatedTimeDt: timestamppb.New(now),
+					DataSources: []string{
+						"{\"uri\":{\"uriSchema\":\"URI_SCHEMA_PURL\", \"path\":\"pkg:docker//workspace/source-code/image.tar\"}, \"fileFindingLocationData\":{\"startLine\":1, \"endLine\":1, \"startColumn\":1, \"endColumn\":1}}",
+					},
+					Desc:            ptr.Ptr("chroot in GNU coreutils, when used with --userspec, allows local users to escape to the parent session via a crafted TIOCSTI ioctl call, which pushes characters to the terminal's input buffer."),
+					FirstSeenTime:   ptr.Ptr(now.Unix()),
+					FirstSeenTimeDt: timestamppb.New(now),
+					LastSeenTime:    ptr.Ptr(now.Unix()),
+					LastSeenTimeDt:  timestamppb.New(now),
+					ModifiedTime:    ptr.Ptr(now.Unix()),
+					ModifiedTimeDt:  timestamppb.New(now),
+					Uid:             "d258a2dc-b324-46aa-9cea-28ba8d44fcb8",
+					Title:           "OsPackageVulnerability",
+				},
+				Message: ptr.Ptr("Package: coreutils\nInstalled Version: 9.4-3ubuntu6\nVulnerability CVE-2016-2781\nSeverity: LOW\nFixed Version: \nLink: [CVE-2016-2781](https://avd.aquasec.com/nvd/cve-2016-2781)"),
+				Metadata: &ocsf.Metadata{
+					EventCode: ptr.Ptr("CVE-2016-2781"),
+					Product: &ocsf.Product{
+						Name: ptr.Ptr("Trivy"),
+					},
+				},
+				Severity:   ptr.Ptr("SEVERITY_ID_INFORMATIONAL"),
+				SeverityId: ocsf.VulnerabilityFinding_SEVERITY_ID_INFORMATIONAL,
+				StartTime:  ptr.Ptr(now.Unix()),
+				StatusId:   ptr.Ptr(ocsf.VulnerabilityFinding_STATUS_ID_NEW),
+				Status:     ptr.Ptr("STATUS_ID_NEW"),
+				Time:       now.Unix(),
+				TimeDt:     timestamppb.New(now),
+				TypeName:   ptr.Ptr("Create"),
+				TypeUid:    int64(200201),
+				Vulnerabilities: []*ocsf.Vulnerability{
+					{
+						AffectedCode: []*ocsf.AffectedCode{
+							{
+								File:      &ocsf.File{},
+								StartLine: ptr.Ptr(int32(1)),
+								EndLine:   ptr.Ptr(int32(1)),
+							},
+						},
+						AffectedPackages: []*ocsf.AffectedPackage{
+							{
+								Name:           "image.tar",
+								PackageManager: ptr.Ptr("docker"),
+								Purl:           ptr.Ptr("pkg:docker/workspace/source-code/image.tar"),
+							},
+						},
+						Cve: &ocsf.Cve{
+							Desc: ptr.Ptr("chroot in GNU coreutils, when used with --userspec, allows local users to escape to the parent session via a crafted TIOCSTI ioctl call, which pushes characters to the terminal's input buffer."),
+							Uid:  "CVE-2016-2781",
+						},
+						Desc:            ptr.Ptr("chroot in GNU coreutils, when used with --userspec, allows local users to escape to the parent session via a crafted TIOCSTI ioctl call, which pushes characters to the terminal's input buffer."),
+						FirstSeenTime:   ptr.Ptr(now.Unix()),
+						FirstSeenTimeDt: timestamppb.New(now),
+						FixAvailable:    ptr.Ptr(false),
+						IsFixAvailable:  ptr.Ptr(false),
+						LastSeenTime:    ptr.Ptr(now.Unix()),
+						LastSeenTimeDt:  timestamppb.New(now),
+						Severity:        ptr.Ptr("SEVERITY_ID_INFORMATIONAL"),
+						Title:           ptr.Ptr("OsPackageVulnerability"),
+						VendorName:      ptr.Ptr("Trivy"),
+					},
+				},
+			},
+			{
+				ActivityId:   ocsf.VulnerabilityFinding_ACTIVITY_ID_CREATE,
+				ActivityName: ptr.Ptr("ACTIVITY_ID_CREATE"),
+				CategoryName: ptr.Ptr("CATEGORY_UID_FINDINGS"),
+				CategoryUid:  ocsf.VulnerabilityFinding_CATEGORY_UID_FINDINGS,
+				ClassName:    ptr.Ptr("CLASS_UID_VULNERABILITY_FINDING"),
+				ClassUid:     ocsf.VulnerabilityFinding_CLASS_UID_VULNERABILITY_FINDING,
+				Confidence:   ptr.Ptr("CONFIDENCE_ID_UNKNOWN"),
+				ConfidenceId: ptr.Ptr(ocsf.VulnerabilityFinding_CONFIDENCE_ID_UNKNOWN),
+				Count:        ptr.Ptr(int32(1)),
+				FindingInfo: &ocsf.FindingInfo{
+					CreatedTime:   ptr.Ptr(now.Unix()),
+					CreatedTimeDt: timestamppb.New(now),
+					DataSources: []string{
+						"{\"uri\":{\"uriSchema\":\"URI_SCHEMA_PURL\", \"path\":\"pkg:docker//workspace/source-code/image.tar\"}, \"fileFindingLocationData\":{\"startLine\":1, \"endLine\":1, \"startColumn\":1, \"endColumn\":1}}",
+					},
+					Desc:            ptr.Ptr("GnuPG can be made to spin on a relatively small input by (for example) crafting a public key with thousands of signatures attached, compressed down to just a few KB."),
+					FirstSeenTime:   ptr.Ptr(now.Unix()),
+					FirstSeenTimeDt: timestamppb.New(now),
+					LastSeenTime:    ptr.Ptr(now.Unix()),
+					LastSeenTimeDt:  timestamppb.New(now),
+					ModifiedTime:    ptr.Ptr(now.Unix()),
+					ModifiedTimeDt:  timestamppb.New(now),
+					Uid:             "d258a2dc-b324-46aa-9cea-28ba8d44fcb8",
+					Title:           "OsPackageVulnerability",
+				},
+				Message: ptr.Ptr("Package: gpgv\nInstalled Version: 2.4.4-2ubuntu17.2\nVulnerability CVE-2022-3219\nSeverity: LOW\nFixed Version: \nLink: [CVE-2022-3219](https://avd.aquasec.com/nvd/cve-2022-3219)"),
+				Metadata: &ocsf.Metadata{
+					EventCode: ptr.Ptr("CVE-2022-3219"),
+					Product: &ocsf.Product{
+						Name: ptr.Ptr("Trivy"),
+					},
+				},
+				Severity:   ptr.Ptr("SEVERITY_ID_INFORMATIONAL"),
+				SeverityId: ocsf.VulnerabilityFinding_SEVERITY_ID_INFORMATIONAL,
+				StartTime:  ptr.Ptr(now.Unix()),
+				StatusId:   ptr.Ptr(ocsf.VulnerabilityFinding_STATUS_ID_NEW),
+				Status:     ptr.Ptr("STATUS_ID_NEW"),
+				Time:       now.Unix(),
+				TimeDt:     timestamppb.New(now),
+				TypeName:   ptr.Ptr("Create"),
+				TypeUid:    int64(200201),
+				Vulnerabilities: []*ocsf.Vulnerability{
+					{
+						AffectedCode: []*ocsf.AffectedCode{
+							{
+								File:      &ocsf.File{},
+								StartLine: ptr.Ptr(int32(1)),
+								EndLine:   ptr.Ptr(int32(1)),
+							},
+						},
+						AffectedPackages: []*ocsf.AffectedPackage{
+							{
+								Name:           "image.tar",
+								PackageManager: ptr.Ptr("docker"),
+								Purl:           ptr.Ptr("pkg:docker/workspace/source-code/image.tar"),
+							},
+						},
+						Cve: &ocsf.Cve{
+							Desc: ptr.Ptr("GnuPG can be made to spin on a relatively small input by (for example) crafting a public key with thousands of signatures attached, compressed down to just a few KB."),
+							Uid:  "CVE-2022-3219",
+						},
+						Desc:            ptr.Ptr("GnuPG can be made to spin on a relatively small input by (for example) crafting a public key with thousands of signatures attached, compressed down to just a few KB."),
+						FirstSeenTime:   ptr.Ptr(now.Unix()),
+						FirstSeenTimeDt: timestamppb.New(now),
+						FixAvailable:    ptr.Ptr(false),
+						IsFixAvailable:  ptr.Ptr(false),
+						LastSeenTime:    ptr.Ptr(now.Unix()),
+						LastSeenTimeDt:  timestamppb.New(now),
+						Severity:        ptr.Ptr("SEVERITY_ID_INFORMATIONAL"),
+						Title:           ptr.Ptr("OsPackageVulnerability"),
+						VendorName:      ptr.Ptr("Trivy"),
+					},
+				},
+			},
+		}
+		transformer, err := sariftransformer.NewTransformer(&sarifOutput, "docker", sariftransformer.TargetTypeImage, clock, MockUUIDProvider{FixedUUID: fixedUUID})
+		require.NoError(t, err)
+		actualIssues, err := transformer.ToOCSF(context.Background())
+		require.NoError(t, err)
+		require.Equal(t, len(actualIssues), len(expectedIssues))
+		// handle datasource differently see https://github.com/golang/protobuf/issues/1121
+		for i, e := range expectedIssues {
+			var expectedDataSource, actualDatasource ocsffindinginfo.DataSource
+			require.Equal(t, len(e.FindingInfo.DataSources), len(actualIssues[i].FindingInfo.DataSources))
+
+			for j, d := range e.GetFindingInfo().DataSources {
+				require.NoError(t, protojson.Unmarshal([]byte(d), &expectedDataSource))
+				require.NoError(t, protojson.Unmarshal([]byte(actualIssues[i].FindingInfo.DataSources[j]), &actualDatasource))
+				require.EqualExportedValues(t, &expectedDataSource, &actualDatasource)
+			}
+			expectedIssues[i].FindingInfo.DataSources = nil
+			actualIssues[i].FindingInfo.DataSources = nil
+		}
+		require.EqualExportedValues(t, expectedIssues, actualIssues)
+
+	})
+	t.Run("zap testcase", func(t *testing.T) {
+		exampleOutput, err := os.ReadFile("./testdata/zap.sarif.json")
+		require.NoError(t, err)
+		var sarifOutput sarif.SchemaJson
+		require.NoError(t, json.Unmarshal(exampleOutput, &sarifOutput))
+
+		clock := clockwork.NewFakeClockAt(staticNow)
+		now := staticNow
+		expectedIssues := []*ocsf.VulnerabilityFinding{
+			{
+				ActivityId:   ocsf.VulnerabilityFinding_ACTIVITY_ID_CREATE,
+				ActivityName: ptr.Ptr("ACTIVITY_ID_CREATE"),
+				CategoryName: ptr.Ptr("CATEGORY_UID_FINDINGS"),
+				CategoryUid:  ocsf.VulnerabilityFinding_CATEGORY_UID_FINDINGS,
+				ClassName:    ptr.Ptr("CLASS_UID_VULNERABILITY_FINDING"),
+				ClassUid:     ocsf.VulnerabilityFinding_CLASS_UID_VULNERABILITY_FINDING,
+				Confidence:   ptr.Ptr("CONFIDENCE_ID_UNKNOWN"),
+				ConfidenceId: ptr.Ptr(ocsf.VulnerabilityFinding_CONFIDENCE_ID_UNKNOWN),
+				Count:        ptr.Ptr(int32(1)),
+				FindingInfo: &ocsf.FindingInfo{
+					CreatedTime:   ptr.Ptr(now.Unix()),
+					CreatedTimeDt: timestamppb.New(now),
+					DataSources: []string{
+						"{\"uri\":{\"path\":\"http://bodgeit.com:8080/bodgeit/search.jsp?q=%3C%2Ffont%3E%3CscrIpt%3Ealert%281%29%3B%3C%2FscRipt%3E%3Cfont%3E\"},\"fileFindingLocationData\":{\"startLine\":70}}",
+					},
+					Desc:            ptr.Ptr("Cross-site Scripting (XSS) is an attack technique that involves echoing attacker-supplied code into a user's browser instance. A browser instance can be a standard web browser client, or a browser object embedded in a software product such as the browser within WinAmp, an RSS reader, or an email client. The code itself is usually written in HTML/JavaScript, but may also extend to VBScript, ActiveX, Java, Flash, or any other browser-supported technology.\nWhen an attacker gets a user's browser to execute his/her code, the code will run within the security context (or zone) of the hosting web site. With this level of privilege, the code has the ability to read, modify and transmit any sensitive data accessible by the browser. A Cross-site Scripted user could have his/her account hijacked (cookie theft), their browser redirected to another location, or possibly shown fraudulent content delivered by the web site they are visiting. Cross-site Scripting attacks essentially compromise the trust relationship between a user and the web site. Applications utilizing browser object instances which load content from the file system may execute code under the local machine zone allowing for system compromise.\n\nThere are three types of Cross-site Scripting attacks: non-persistent, persistent and DOM-based.\nNon-persistent attacks and DOM-based attacks require a user to either visit a specially crafted link laced with malicious code, or visit a malicious web page containing a web form, which when posted to the vulnerable site, will mount the attack. Using a malicious form will oftentimes take place when the vulnerable resource only accepts HTTP POST requests. In such a case, the form can be submitted automatically, without the victim's knowledge (e.g. by using JavaScript). Upon clicking on the malicious link or submitting the malicious form, the XSS payload will get echoed back and will get interpreted by the user's browser and execute. Another technique to send almost arbitrary requests (GET and POST) is by using an embedded client, such as Adobe Flash.\nPersistent attacks occur when the malicious code is submitted to a web site where it's stored for a period of time. Examples of an attacker's favorite targets often include message board posts, web mail messages, and web chat software. The unsuspecting user is not required to interact with any additional site/link (e.g. an attacker site or a malicious link sent via email), just simply view the web page containing the code."),
+					FirstSeenTime:   ptr.Ptr(now.Unix()),
+					FirstSeenTimeDt: timestamppb.New(now),
+					LastSeenTime:    ptr.Ptr(now.Unix()),
+					LastSeenTimeDt:  timestamppb.New(now),
+					ModifiedTime:    ptr.Ptr(now.Unix()),
+					ModifiedTimeDt:  timestamppb.New(now),
+					Uid:             fixedUUID,
+					Title:           "Cross Site Scripting (Reflected)",
+				},
+				Message: ptr.Ptr("Cross-site Scripting (XSS) is an attack technique that involves echoing attacker-supplied code into a user's browser instance. A browser instance can be a standard web browser client, or a browser object embedded in a software product such as the browser within WinAmp, an RSS reader, or an email client. The code itself is usually written in HTML/JavaScript, but may also extend to VBScript, ActiveX, Java, Flash, or any other browser-supported technology.\nWhen an attacker gets a user's browser to execute his/her code, the code will run within the security context (or zone) of the hosting web site. With this level of privilege, the code has the ability to read, modify and transmit any sensitive data accessible by the browser. A Cross-site Scripted user could have his/her account hijacked (cookie theft), their browser redirected to another location, or possibly shown fraudulent content delivered by the web site they are visiting. Cross-site Scripting attacks essentially compromise the trust relationship between a user and the web site. Applications utilizing browser object instances which load content from the file system may execute code under the local machine zone allowing for system compromise.\n\nThere are three types of Cross-site Scripting attacks: non-persistent, persistent and DOM-based.\nNon-persistent attacks and DOM-based attacks require a user to either visit a specially crafted link laced with malicious code, or visit a malicious web page containing a web form, which when posted to the vulnerable site, will mount the attack. Using a malicious form will oftentimes take place when the vulnerable resource only accepts HTTP POST requests. In such a case, the form can be submitted automatically, without the victim's knowledge (e.g. by using JavaScript). Upon clicking on the malicious link or submitting the malicious form, the XSS payload will get echoed back and will get interpreted by the user's browser and execute. Another technique to send almost arbitrary requests (GET and POST) is by using an embedded client, such as Adobe Flash.\nPersistent attacks occur when the malicious code is submitted to a web site where it's stored for a period of time. Examples of an attacker's favorite targets often include message board posts, web mail messages, and web chat software. The unsuspecting user is not required to interact with any additional site/link (e.g. an attacker site or a malicious link sent via email), just simply view the web page containing the code."),
+				Metadata: &ocsf.Metadata{
+					EventCode: ptr.Ptr("40012"),
+					Product: &ocsf.Product{
+						Name: ptr.Ptr("ZAP"),
+					},
+				},
+				Severity:   ptr.Ptr("SEVERITY_ID_HIGH"),
+				SeverityId: ocsf.VulnerabilityFinding_SEVERITY_ID_HIGH,
+				StartTime:  ptr.Ptr(now.Unix()),
+				StatusId:   ptr.Ptr(ocsf.VulnerabilityFinding_STATUS_ID_NEW),
+				Status:     ptr.Ptr("STATUS_ID_NEW"),
+				Time:       now.Unix(),
+				TimeDt:     timestamppb.New(now),
+				TypeName:   ptr.Ptr("Create"),
+				TypeUid:    int64(200201),
+				Vulnerabilities: []*ocsf.Vulnerability{
+					{
+						Cwe: &ocsf.Cwe{
+							SrcUrl: ptr.Ptr("https://cwe.mitre.org/data/definitions/79.html"),
+							Uid:    "79",
+						},
+						Desc:            ptr.Ptr("Cross-site Scripting (XSS) is an attack technique that involves echoing attacker-supplied code into a user's browser instance. A browser instance can be a standard web browser client, or a browser object embedded in a software product such as the browser within WinAmp, an RSS reader, or an email client. The code itself is usually written in HTML/JavaScript, but may also extend to VBScript, ActiveX, Java, Flash, or any other browser-supported technology.\nWhen an attacker gets a user's browser to execute his/her code, the code will run within the security context (or zone) of the hosting web site. With this level of privilege, the code has the ability to read, modify and transmit any sensitive data accessible by the browser. A Cross-site Scripted user could have his/her account hijacked (cookie theft), their browser redirected to another location, or possibly shown fraudulent content delivered by the web site they are visiting. Cross-site Scripting attacks essentially compromise the trust relationship between a user and the web site. Applications utilizing browser object instances which load content from the file system may execute code under the local machine zone allowing for system compromise.\n\nThere are three types of Cross-site Scripting attacks: non-persistent, persistent and DOM-based.\nNon-persistent attacks and DOM-based attacks require a user to either visit a specially crafted link laced with malicious code, or visit a malicious web page containing a web form, which when posted to the vulnerable site, will mount the attack. Using a malicious form will oftentimes take place when the vulnerable resource only accepts HTTP POST requests. In such a case, the form can be submitted automatically, without the victim's knowledge (e.g. by using JavaScript). Upon clicking on the malicious link or submitting the malicious form, the XSS payload will get echoed back and will get interpreted by the user's browser and execute. Another technique to send almost arbitrary requests (GET and POST) is by using an embedded client, such as Adobe Flash.\nPersistent attacks occur when the malicious code is submitted to a web site where it's stored for a period of time. Examples of an attacker's favorite targets often include message board posts, web mail messages, and web chat software. The unsuspecting user is not required to interact with any additional site/link (e.g. an attacker site or a malicious link sent via email), just simply view the web page containing the code."),
+						FirstSeenTime:   ptr.Ptr(now.Unix()),
+						FirstSeenTimeDt: timestamppb.New(now),
+						FixAvailable:    ptr.Ptr(false),
+						IsFixAvailable:  ptr.Ptr(false),
+						LastSeenTime:    ptr.Ptr(now.Unix()),
+						LastSeenTimeDt:  timestamppb.New(now),
+						Severity:        ptr.Ptr("SEVERITY_ID_HIGH"),
+						Title:           ptr.Ptr("Cross Site Scripting (Reflected)"),
+						VendorName:      ptr.Ptr("ZAP"),
+					},
+				},
+			},
+			{
+				ActivityId:   ocsf.VulnerabilityFinding_ACTIVITY_ID_CREATE,
+				ActivityName: ptr.Ptr("ACTIVITY_ID_CREATE"),
+				CategoryName: ptr.Ptr("CATEGORY_UID_FINDINGS"),
+				CategoryUid:  ocsf.VulnerabilityFinding_CATEGORY_UID_FINDINGS,
+				ClassName:    ptr.Ptr("CLASS_UID_VULNERABILITY_FINDING"),
+				ClassUid:     ocsf.VulnerabilityFinding_CLASS_UID_VULNERABILITY_FINDING,
+				Confidence:   ptr.Ptr("CONFIDENCE_ID_UNKNOWN"),
+				ConfidenceId: ptr.Ptr(ocsf.VulnerabilityFinding_CONFIDENCE_ID_UNKNOWN),
+				Count:        ptr.Ptr(int32(1)),
+				FindingInfo: &ocsf.FindingInfo{
+					CreatedTime:   ptr.Ptr(now.Unix()),
+					CreatedTimeDt: timestamppb.New(now),
+					DataSources: []string{
+						"{\"uri\":{\"path\":\"http://bodgeit.com:8080/bodgeit/contact.jsp\"},\"fileFindingLocationData\":{\"startLine\":69}}",
+					},
+					Desc:            ptr.Ptr("Cross-site Scripting (XSS) is an attack technique that involves echoing attacker-supplied code into a user's browser instance. A browser instance can be a standard web browser client, or a browser object embedded in a software product such as the browser within WinAmp, an RSS reader, or an email client. The code itself is usually written in HTML/JavaScript, but may also extend to VBScript, ActiveX, Java, Flash, or any other browser-supported technology.\nWhen an attacker gets a user's browser to execute his/her code, the code will run within the security context (or zone) of the hosting web site. With this level of privilege, the code has the ability to read, modify and transmit any sensitive data accessible by the browser. A Cross-site Scripted user could have his/her account hijacked (cookie theft), their browser redirected to another location, or possibly shown fraudulent content delivered by the web site they are visiting. Cross-site Scripting attacks essentially compromise the trust relationship between a user and the web site. Applications utilizing browser object instances which load content from the file system may execute code under the local machine zone allowing for system compromise.\n\nThere are three types of Cross-site Scripting attacks: non-persistent, persistent and DOM-based.\nNon-persistent attacks and DOM-based attacks require a user to either visit a specially crafted link laced with malicious code, or visit a malicious web page containing a web form, which when posted to the vulnerable site, will mount the attack. Using a malicious form will oftentimes take place when the vulnerable resource only accepts HTTP POST requests. In such a case, the form can be submitted automatically, without the victim's knowledge (e.g. by using JavaScript). Upon clicking on the malicious link or submitting the malicious form, the XSS payload will get echoed back and will get interpreted by the user's browser and execute. Another technique to send almost arbitrary requests (GET and POST) is by using an embedded client, such as Adobe Flash.\nPersistent attacks occur when the malicious code is submitted to a web site where it's stored for a period of time. Examples of an attacker's favorite targets often include message board posts, web mail messages, and web chat software. The unsuspecting user is not required to interact with any additional site/link (e.g. an attacker site or a malicious link sent via email), just simply view the web page containing the code."),
+					FirstSeenTime:   ptr.Ptr(now.Unix()),
+					FirstSeenTimeDt: timestamppb.New(now),
+					LastSeenTime:    ptr.Ptr(now.Unix()),
+					LastSeenTimeDt:  timestamppb.New(now),
+					ModifiedTime:    ptr.Ptr(now.Unix()),
+					ModifiedTimeDt:  timestamppb.New(now),
+					Uid:             fixedUUID,
+					Title:           "Cross Site Scripting (Reflected)",
+				},
+				Message: ptr.Ptr("Cross-site Scripting (XSS) is an attack technique that involves echoing attacker-supplied code into a user's browser instance. A browser instance can be a standard web browser client, or a browser object embedded in a software product such as the browser within WinAmp, an RSS reader, or an email client. The code itself is usually written in HTML/JavaScript, but may also extend to VBScript, ActiveX, Java, Flash, or any other browser-supported technology.\nWhen an attacker gets a user's browser to execute his/her code, the code will run within the security context (or zone) of the hosting web site. With this level of privilege, the code has the ability to read, modify and transmit any sensitive data accessible by the browser. A Cross-site Scripted user could have his/her account hijacked (cookie theft), their browser redirected to another location, or possibly shown fraudulent content delivered by the web site they are visiting. Cross-site Scripting attacks essentially compromise the trust relationship between a user and the web site. Applications utilizing browser object instances which load content from the file system may execute code under the local machine zone allowing for system compromise.\n\nThere are three types of Cross-site Scripting attacks: non-persistent, persistent and DOM-based.\nNon-persistent attacks and DOM-based attacks require a user to either visit a specially crafted link laced with malicious code, or visit a malicious web page containing a web form, which when posted to the vulnerable site, will mount the attack. Using a malicious form will oftentimes take place when the vulnerable resource only accepts HTTP POST requests. In such a case, the form can be submitted automatically, without the victim's knowledge (e.g. by using JavaScript). Upon clicking on the malicious link or submitting the malicious form, the XSS payload will get echoed back and will get interpreted by the user's browser and execute. Another technique to send almost arbitrary requests (GET and POST) is by using an embedded client, such as Adobe Flash.\nPersistent attacks occur when the malicious code is submitted to a web site where it's stored for a period of time. Examples of an attacker's favorite targets often include message board posts, web mail messages, and web chat software. The unsuspecting user is not required to interact with any additional site/link (e.g. an attacker site or a malicious link sent via email), just simply view the web page containing the code."),
+				Metadata: &ocsf.Metadata{
+					EventCode: ptr.Ptr("40012"),
+					Product: &ocsf.Product{
+						Name: ptr.Ptr("ZAP"),
+					},
+				},
+				Severity:   ptr.Ptr("SEVERITY_ID_HIGH"),
+				SeverityId: ocsf.VulnerabilityFinding_SEVERITY_ID_HIGH,
+				StartTime:  ptr.Ptr(now.Unix()),
+				StatusId:   ptr.Ptr(ocsf.VulnerabilityFinding_STATUS_ID_NEW),
+				Status:     ptr.Ptr("STATUS_ID_NEW"),
+				Time:       now.Unix(),
+				TimeDt:     timestamppb.New(now),
+				TypeName:   ptr.Ptr("Create"),
+				TypeUid:    int64(200201),
+				Vulnerabilities: []*ocsf.Vulnerability{
+					{
+						Cwe: &ocsf.Cwe{
+							SrcUrl: ptr.Ptr("https://cwe.mitre.org/data/definitions/79.html"),
+							Uid:    "79",
+						},
+						Desc:            ptr.Ptr("Cross-site Scripting (XSS) is an attack technique that involves echoing attacker-supplied code into a user's browser instance. A browser instance can be a standard web browser client, or a browser object embedded in a software product such as the browser within WinAmp, an RSS reader, or an email client. The code itself is usually written in HTML/JavaScript, but may also extend to VBScript, ActiveX, Java, Flash, or any other browser-supported technology.\nWhen an attacker gets a user's browser to execute his/her code, the code will run within the security context (or zone) of the hosting web site. With this level of privilege, the code has the ability to read, modify and transmit any sensitive data accessible by the browser. A Cross-site Scripted user could have his/her account hijacked (cookie theft), their browser redirected to another location, or possibly shown fraudulent content delivered by the web site they are visiting. Cross-site Scripting attacks essentially compromise the trust relationship between a user and the web site. Applications utilizing browser object instances which load content from the file system may execute code under the local machine zone allowing for system compromise.\n\nThere are three types of Cross-site Scripting attacks: non-persistent, persistent and DOM-based.\nNon-persistent attacks and DOM-based attacks require a user to either visit a specially crafted link laced with malicious code, or visit a malicious web page containing a web form, which when posted to the vulnerable site, will mount the attack. Using a malicious form will oftentimes take place when the vulnerable resource only accepts HTTP POST requests. In such a case, the form can be submitted automatically, without the victim's knowledge (e.g. by using JavaScript). Upon clicking on the malicious link or submitting the malicious form, the XSS payload will get echoed back and will get interpreted by the user's browser and execute. Another technique to send almost arbitrary requests (GET and POST) is by using an embedded client, such as Adobe Flash.\nPersistent attacks occur when the malicious code is submitted to a web site where it's stored for a period of time. Examples of an attacker's favorite targets often include message board posts, web mail messages, and web chat software. The unsuspecting user is not required to interact with any additional site/link (e.g. an attacker site or a malicious link sent via email), just simply view the web page containing the code."),
+						FirstSeenTime:   ptr.Ptr(now.Unix()),
+						FirstSeenTimeDt: timestamppb.New(now),
+						FixAvailable:    ptr.Ptr(false),
+						IsFixAvailable:  ptr.Ptr(false),
+						LastSeenTime:    ptr.Ptr(now.Unix()),
+						LastSeenTimeDt:  timestamppb.New(now),
+						Severity:        ptr.Ptr("SEVERITY_ID_HIGH"),
+						Title:           ptr.Ptr("Cross Site Scripting (Reflected)"),
+						VendorName:      ptr.Ptr("ZAP"),
+					},
+				},
+			},
+			{
+				ActivityId:   ocsf.VulnerabilityFinding_ACTIVITY_ID_CREATE,
+				ActivityName: ptr.Ptr("ACTIVITY_ID_CREATE"),
+				CategoryName: ptr.Ptr("CATEGORY_UID_FINDINGS"),
+				CategoryUid:  ocsf.VulnerabilityFinding_CATEGORY_UID_FINDINGS,
+				ClassName:    ptr.Ptr("CLASS_UID_VULNERABILITY_FINDING"),
+				ClassUid:     ocsf.VulnerabilityFinding_CLASS_UID_VULNERABILITY_FINDING,
+				Confidence:   ptr.Ptr("CONFIDENCE_ID_UNKNOWN"),
+				ConfidenceId: ptr.Ptr(ocsf.VulnerabilityFinding_CONFIDENCE_ID_UNKNOWN),
+				Count:        ptr.Ptr(int32(1)),
+				FindingInfo: &ocsf.FindingInfo{
+					CreatedTime:   ptr.Ptr(now.Unix()),
+					CreatedTimeDt: timestamppb.New(now),
+					DataSources: []string{
+						"{\"uri\":{\"path\":\"http://bodgeit.com:8080/bodgeit/basket.jsp\"},\"fileFindingLocationData\":{\"startLine\":1}}",
+					},
+					Desc:            ptr.Ptr("SQL injection may be possible."),
+					FirstSeenTime:   ptr.Ptr(now.Unix()),
+					FirstSeenTimeDt: timestamppb.New(now),
+					LastSeenTime:    ptr.Ptr(now.Unix()),
+					LastSeenTimeDt:  timestamppb.New(now),
+					ModifiedTime:    ptr.Ptr(now.Unix()),
+					ModifiedTimeDt:  timestamppb.New(now),
+					Uid:             fixedUUID,
+					Title:           "SQL Injection",
+				},
+				Message: ptr.Ptr("The original page results were successfully replicated using the expression [5-2] as the parameter value\nThe parameter value being modified was stripped from the HTML output for the purposes of the comparison."),
+				Metadata: &ocsf.Metadata{
+					EventCode: ptr.Ptr("40018"),
+					Product: &ocsf.Product{
+						Name: ptr.Ptr("ZAP"),
+					},
+				},
+				Severity:   ptr.Ptr("SEVERITY_ID_HIGH"),
+				SeverityId: ocsf.VulnerabilityFinding_SEVERITY_ID_HIGH,
+				StartTime:  ptr.Ptr(now.Unix()),
+				StatusId:   ptr.Ptr(ocsf.VulnerabilityFinding_STATUS_ID_NEW),
+				Status:     ptr.Ptr("STATUS_ID_NEW"),
+				Time:       now.Unix(),
+				TimeDt:     timestamppb.New(now),
+				TypeName:   ptr.Ptr("Create"),
+				TypeUid:    int64(200201),
+				Vulnerabilities: []*ocsf.Vulnerability{
+					{
+						Cwe: &ocsf.Cwe{
+							SrcUrl: ptr.Ptr("https://cwe.mitre.org/data/definitions/89.html"),
+							Uid:    "89",
+						},
+						Desc:            ptr.Ptr("SQL injection may be possible."),
+						FirstSeenTime:   ptr.Ptr(now.Unix()),
+						FirstSeenTimeDt: timestamppb.New(now),
+						FixAvailable:    ptr.Ptr(false),
+						IsFixAvailable:  ptr.Ptr(false),
+						LastSeenTime:    ptr.Ptr(now.Unix()),
+						LastSeenTimeDt:  timestamppb.New(now),
+						Severity:        ptr.Ptr("SEVERITY_ID_HIGH"),
+						Title:           ptr.Ptr("SQL Injection"),
+						VendorName:      ptr.Ptr("ZAP"),
+					},
+				},
+			},
+		}
+		transformer, err := sariftransformer.NewTransformer(&sarifOutput, "", sariftransformer.TargetTypeWeb, clock, MockUUIDProvider{FixedUUID: fixedUUID})
+		require.NoError(t, err)
+		actualIssues, err := transformer.ToOCSF(context.Background())
+		require.NoError(t, err)
+		require.Equal(t, len(actualIssues), len(expectedIssues))
+
+		// handle datasource differently see https://github.com/golang/protobuf/issues/1121
+		for i, e := range expectedIssues {
+			var expectedDataSource, actualDatasource ocsffindinginfo.DataSource
+			require.Equal(t, len(e.FindingInfo.DataSources), len(actualIssues[i].FindingInfo.DataSources))
+
+			for j, d := range e.GetFindingInfo().DataSources {
+				protojson.Unmarshal([]byte(d), &expectedDataSource)
+				protojson.Unmarshal([]byte(actualIssues[i].FindingInfo.DataSources[j]), &actualDatasource)
+				require.EqualExportedValues(t, &expectedDataSource, &actualDatasource)
+			}
+			expectedIssues[i].FindingInfo.DataSources = nil
+			actualIssues[i].FindingInfo.DataSources = nil
+		}
+
+		require.EqualExportedValues(t, expectedIssues, actualIssues)
+
+	})
+	t.Run("snyk testcase with automated ecosystem detection", func(t *testing.T) {
+		exampleOutput, err := os.ReadFile("./testdata/snyk-node_output.json")
+		require.NoError(t, err)
+		var sarifOutput sarif.SchemaJson
+		require.NoError(t, json.Unmarshal(exampleOutput, &sarifOutput))
+
+		clock := clockwork.NewFakeClockAt(staticNow)
+		now := staticNow
+		expectedIssues := []*ocsf.VulnerabilityFinding{
+			{
+				ActivityId:   ocsf.VulnerabilityFinding_ACTIVITY_ID_CREATE,
+				ActivityName: ptr.Ptr("ACTIVITY_ID_CREATE"),
+				CategoryName: ptr.Ptr("CATEGORY_UID_FINDINGS"),
+				CategoryUid:  ocsf.VulnerabilityFinding_CATEGORY_UID_FINDINGS,
+				ClassName:    ptr.Ptr("CLASS_UID_VULNERABILITY_FINDING"),
+				ClassUid:     ocsf.VulnerabilityFinding_CLASS_UID_VULNERABILITY_FINDING,
+				Confidence:   ptr.Ptr("CONFIDENCE_ID_UNKNOWN"),
+				ConfidenceId: ptr.Ptr(ocsf.VulnerabilityFinding_CONFIDENCE_ID_UNKNOWN),
+				Count:        ptr.Ptr(int32(1)),
+				FindingInfo: &ocsf.FindingInfo{
+					CreatedTime:     ptr.Ptr(now.Unix()),
+					CreatedTimeDt:   timestamppb.New(now),
+					DataSources:     []string{"{\"fileFindingLocationData\":{\"startLine\":1}}"},
+					Desc:            ptr.Ptr("(CVE-2024-47764) cookie@0.3.1"),
+					FirstSeenTime:   ptr.Ptr(now.Unix()),
+					FirstSeenTimeDt: timestamppb.New(now),
+					LastSeenTime:    ptr.Ptr(now.Unix()),
+					LastSeenTimeDt:  timestamppb.New(now),
+					ModifiedTime:    ptr.Ptr(now.Unix()),
+					ModifiedTimeDt:  timestamppb.New(now),
+					Uid:             fixedUUID,
+					Title:           "This file introduces a vulnerable cookie package with a medium severity vulnerability.",
+				},
+				Message: ptr.Ptr("This file introduces a vulnerable cookie package with a medium severity vulnerability."),
+				Metadata: &ocsf.Metadata{
+					EventCode: ptr.Ptr("SNYK-JS-COOKIE-8163060"),
+					Product: &ocsf.Product{
+						Name: ptr.Ptr("Snyk Open Source"),
+					},
+				},
+				Severity:   ptr.Ptr("SEVERITY_ID_MEDIUM"),
+				SeverityId: ocsf.VulnerabilityFinding_SEVERITY_ID_MEDIUM,
+				Time:       now.Unix(),
+				TimeDt:     timestamppb.New(now),
+				TypeName:   ptr.Ptr("Create"),
+				TypeUid:    int64(200201),
+				StartTime:  ptr.Ptr(now.Unix()),
+				StatusId:   ptr.Ptr(ocsf.VulnerabilityFinding_STATUS_ID_NEW),
+				Status:     ptr.Ptr("STATUS_ID_NEW"),
+				Vulnerabilities: []*ocsf.Vulnerability{
+					{
+						AffectedCode: []*ocsf.AffectedCode{
+							{
+								File:      &ocsf.File{},
+								StartLine: ptr.Ptr(int32(1)),
+							},
+						},
+						AffectedPackages: []*ocsf.AffectedPackage{
+							{
+								Name:           "cookie",
+								PackageManager: ptr.Ptr("npm"),
+								Purl:           ptr.Ptr("pkg:npm/cookie@0.3.1"),
+							},
+						},
+						Cve: &ocsf.Cve{
+							Desc: ptr.Ptr("(CVE-2024-47764) cookie@0.3.1"),
+							Uid:  "CVE-2024-47764",
+						},
+						Desc:            ptr.Ptr("(CVE-2024-47764) cookie@0.3.1"),
+						FirstSeenTime:   ptr.Ptr(now.Unix()),
+						FirstSeenTimeDt: timestamppb.New(now),
+						FixAvailable:    ptr.Ptr(true),
+						IsFixAvailable:  ptr.Ptr(true),
+						LastSeenTime:    ptr.Ptr(now.Unix()),
+						LastSeenTimeDt:  timestamppb.New(now),
+
+						Severity:   ptr.Ptr("SEVERITY_ID_MEDIUM"),
+						Title:      ptr.Ptr("This file introduces a vulnerable cookie package with a medium severity vulnerability."),
+						VendorName: ptr.Ptr("Snyk Open Source"),
+					},
+				},
+			},
+			{
+				ActivityId:   ocsf.VulnerabilityFinding_ACTIVITY_ID_CREATE,
+				ActivityName: ptr.Ptr("ACTIVITY_ID_CREATE"),
+				CategoryName: ptr.Ptr("CATEGORY_UID_FINDINGS"),
+				CategoryUid:  ocsf.VulnerabilityFinding_CATEGORY_UID_FINDINGS,
+				ClassName:    ptr.Ptr("CLASS_UID_VULNERABILITY_FINDING"),
+				ClassUid:     ocsf.VulnerabilityFinding_CLASS_UID_VULNERABILITY_FINDING,
+				Confidence:   ptr.Ptr("CONFIDENCE_ID_UNKNOWN"),
+				ConfidenceId: ptr.Ptr(ocsf.VulnerabilityFinding_CONFIDENCE_ID_UNKNOWN),
+				Count:        ptr.Ptr(int32(1)),
+				FindingInfo: &ocsf.FindingInfo{
+					CreatedTime:     ptr.Ptr(now.Unix()),
+					CreatedTimeDt:   timestamppb.New(now),
+					DataSources:     []string{"{\"fileFindingLocationData\":{\"startLine\":1}}"},
+					Desc:            ptr.Ptr("(CVE-2020-36048) engine.io@1.8.5"),
+					FirstSeenTime:   ptr.Ptr(now.Unix()),
+					FirstSeenTimeDt: timestamppb.New(now),
+					LastSeenTime:    ptr.Ptr(now.Unix()),
+					LastSeenTimeDt:  timestamppb.New(now),
+					ModifiedTime:    ptr.Ptr(now.Unix()),
+					ModifiedTimeDt:  timestamppb.New(now),
+					Uid:             fixedUUID,
+					Title:           "This file introduces a vulnerable engine.io package with a high severity vulnerability.",
+				},
+				Message: ptr.Ptr("This file introduces a vulnerable engine.io package with a high severity vulnerability."),
+				Metadata: &ocsf.Metadata{
+					EventCode: ptr.Ptr("SNYK-JS-ENGINEIO-1056749"),
+					Product: &ocsf.Product{
+						Name: ptr.Ptr("Snyk Open Source"),
+					},
+				},
+				Severity:   ptr.Ptr("SEVERITY_ID_HIGH"),
+				SeverityId: ocsf.VulnerabilityFinding_SEVERITY_ID_HIGH,
+				StartTime:  ptr.Ptr(now.Unix()),
+				StatusId:   ptr.Ptr(ocsf.VulnerabilityFinding_STATUS_ID_NEW),
+				Status:     ptr.Ptr("STATUS_ID_NEW"),
+				Time:       now.Unix(),
+				TimeDt:     timestamppb.New(now),
+				TypeName:   ptr.Ptr("Create"),
+				TypeUid:    int64(200201),
+				Vulnerabilities: []*ocsf.Vulnerability{
+					{
+						AffectedCode: []*ocsf.AffectedCode{
+							{
+								File:      &ocsf.File{},
+								StartLine: ptr.Ptr(int32(1)),
+							},
+						},
+						AffectedPackages: []*ocsf.AffectedPackage{
+							{
+								Name:           "engine.io",
+								PackageManager: ptr.Ptr("npm"),
+								Purl:           ptr.Ptr("pkg:npm/engine.io@1.8.5"),
+							},
+						},
+						Cve: &ocsf.Cve{
+							Desc: ptr.Ptr("(CVE-2020-36048) engine.io@1.8.5"),
+							Uid:  "CVE-2020-36048",
+						},
+						Cwe: &ocsf.Cwe{
+							Uid: "400",
+						},
+						Desc:            ptr.Ptr("(CVE-2020-36048) engine.io@1.8.5"),
+						FirstSeenTime:   ptr.Ptr(now.Unix()),
+						FirstSeenTimeDt: timestamppb.New(now),
+						FixAvailable:    ptr.Ptr(true),
+						IsFixAvailable:  ptr.Ptr(true),
+						LastSeenTime:    ptr.Ptr(now.Unix()),
+						LastSeenTimeDt:  timestamppb.New(now),
+
+						Severity:   ptr.Ptr("SEVERITY_ID_HIGH"),
+						Title:      ptr.Ptr("This file introduces a vulnerable engine.io package with a high severity vulnerability."),
+						VendorName: ptr.Ptr("Snyk Open Source"),
+					},
+				},
+			},
+			{
+				ActivityId:   ocsf.VulnerabilityFinding_ACTIVITY_ID_CREATE,
+				ActivityName: ptr.Ptr("ACTIVITY_ID_CREATE"),
+				CategoryName: ptr.Ptr("CATEGORY_UID_FINDINGS"),
+				CategoryUid:  ocsf.VulnerabilityFinding_CATEGORY_UID_FINDINGS,
+				ClassName:    ptr.Ptr("CLASS_UID_VULNERABILITY_FINDING"),
+				ClassUid:     ocsf.VulnerabilityFinding_CLASS_UID_VULNERABILITY_FINDING,
+				Confidence:   ptr.Ptr("CONFIDENCE_ID_UNKNOWN"),
+				ConfidenceId: ptr.Ptr(ocsf.VulnerabilityFinding_CONFIDENCE_ID_UNKNOWN),
+				Count:        ptr.Ptr(int32(1)),
+				FindingInfo: &ocsf.FindingInfo{
+					CreatedTime:     ptr.Ptr(now.Unix()),
+					CreatedTimeDt:   timestamppb.New(now),
+					DataSources:     []string{"{\"fileFindingLocationData\":{\"startLine\":1}}"},
+					Desc:            ptr.Ptr("(CVE-2022-41940) engine.io@1.8.5"),
+					FirstSeenTime:   ptr.Ptr(now.Unix()),
+					FirstSeenTimeDt: timestamppb.New(now),
+					LastSeenTime:    ptr.Ptr(now.Unix()),
+					LastSeenTimeDt:  timestamppb.New(now),
+					ModifiedTime:    ptr.Ptr(now.Unix()),
+					ModifiedTimeDt:  timestamppb.New(now),
+					Uid:             fixedUUID,
+					Title:           "This file introduces a vulnerable engine.io package with a high severity vulnerability.",
+				},
+				Message: ptr.Ptr("This file introduces a vulnerable engine.io package with a high severity vulnerability."),
+				Metadata: &ocsf.Metadata{
+					EventCode: ptr.Ptr("SNYK-JS-ENGINEIO-3136336"),
+					Product: &ocsf.Product{
+						Name: ptr.Ptr("Snyk Open Source"),
+					},
+				},
+				Severity:   ptr.Ptr("SEVERITY_ID_HIGH"),
+				SeverityId: ocsf.VulnerabilityFinding_SEVERITY_ID_HIGH,
+				StartTime:  ptr.Ptr(now.Unix()),
+				StatusId:   ptr.Ptr(ocsf.VulnerabilityFinding_STATUS_ID_NEW),
+				Status:     ptr.Ptr("STATUS_ID_NEW"),
+				Time:       now.Unix(),
+				TimeDt:     timestamppb.New(now),
+				TypeName:   ptr.Ptr("Create"),
+				TypeUid:    int64(200201),
+				Vulnerabilities: []*ocsf.Vulnerability{
+					{
+						AffectedCode: []*ocsf.AffectedCode{
+							{
+								File:      &ocsf.File{},
+								StartLine: ptr.Ptr(int32(1)),
+							},
+						},
+						AffectedPackages: []*ocsf.AffectedPackage{
+							{
+								Name:           "engine.io",
+								PackageManager: ptr.Ptr("npm"),
+								Purl:           ptr.Ptr("pkg:npm/engine.io@1.8.5"),
+							},
+						},
+						Cve: &ocsf.Cve{
+							Desc: ptr.Ptr("(CVE-2022-41940) engine.io@1.8.5"),
+							Uid:  "CVE-2022-41940",
+						},
+						Cwe: &ocsf.Cwe{
+							Uid: "400",
+						},
+						Desc:            ptr.Ptr("(CVE-2022-41940) engine.io@1.8.5"),
+						FirstSeenTime:   ptr.Ptr(now.Unix()),
+						FirstSeenTimeDt: timestamppb.New(now),
+						FixAvailable:    ptr.Ptr(true),
+						IsFixAvailable:  ptr.Ptr(true),
+						LastSeenTime:    ptr.Ptr(now.Unix()),
+						LastSeenTimeDt:  timestamppb.New(now),
+
+						Severity:   ptr.Ptr("SEVERITY_ID_HIGH"),
+						Title:      ptr.Ptr("This file introduces a vulnerable engine.io package with a high severity vulnerability."),
+						VendorName: ptr.Ptr("Snyk Open Source"),
+					},
+				},
+			},
+		}
+		transformer, err := sariftransformer.NewTransformer(&sarifOutput, "", sariftransformer.TargetTypeDependency, clock, MockUUIDProvider{FixedUUID: fixedUUID})
+		require.NoError(t, err)
+		actualIssues, err := transformer.ToOCSF(context.Background())
+
+		require.NoError(t, err)
+		require.Equal(t, len(actualIssues), len(expectedIssues))
+		// handle datasource differently see https://github.com/golang/protobuf/issues/1121
+		for i, e := range expectedIssues {
+			var expectedDataSource, actualDatasource ocsffindinginfo.DataSource
+			require.Equal(t, len(e.FindingInfo.DataSources), len(actualIssues[i].FindingInfo.DataSources))
+
+			for j, d := range e.GetFindingInfo().DataSources {
+				protojson.Unmarshal([]byte(d), &expectedDataSource)
+				protojson.Unmarshal([]byte(actualIssues[i].FindingInfo.DataSources[j]), &actualDatasource)
+				require.EqualExportedValues(t, &expectedDataSource, &actualDatasource)
+			}
+			expectedIssues[i].FindingInfo.DataSources = nil
+			actualIssues[i].FindingInfo.DataSources = nil
+		}
+		require.EqualExportedValues(t, expectedIssues, actualIssues)
+
+	})
 }
