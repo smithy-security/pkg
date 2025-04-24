@@ -42,8 +42,9 @@ type (
 
 	// Config allows configuring the client.
 	Config struct {
-		// BaseClient allows to specify a base http.Client.
 		BaseClient *http.Client
+		// BaseTransport allows to specify a base http.RoundTripper.
+		BaseTransport http.RoundTripper
 		// Logger allows to specify a custom logger. *slog.Logger will satisfy this.
 		Logger Logger
 		// NextRetryInSecondsFunc allows to specify a custom retry function.
@@ -61,7 +62,8 @@ type (
 	}
 
 	retry struct {
-		config Config
+		config        Config
+		baseTransport http.RoundTripper
 	}
 )
 
@@ -74,8 +76,8 @@ func (c Config) Validate() error {
 		return errors.New("retryable status codes is required")
 	case len(c.AcceptedStatusCodes) == 0:
 		return errors.New("accepted status codes is required")
-	case c.BaseClient == nil:
-		return errors.New("base client is required")
+	case c.BaseTransport == nil:
+		return errors.New("base round tripper is required")
 	case c.Logger == nil:
 		return errors.New("logger is required")
 	case c.NextRetryInSecondsFunc == nil:
@@ -103,6 +105,10 @@ func applyConfig(cfg Config) (Config, error) {
 		clonedCfg.BaseClient = http.DefaultClient
 	}
 
+	if clonedCfg.BaseTransport == nil {
+		clonedCfg.BaseTransport = http.DefaultTransport
+	}
+
 	if clonedCfg.Logger == nil {
 		clonedCfg.Logger = &noopLogger{}
 	}
@@ -122,7 +128,8 @@ func NewClient(config Config) (*http.Client, error) {
 	}
 
 	config.BaseClient.Transport = &retry{
-		config: config,
+		config:        config,
+		baseTransport: config.BaseTransport,
 	}
 
 	return config.BaseClient, nil
@@ -136,7 +143,8 @@ func NewRoundTripper(config Config) (http.RoundTripper, error) {
 	}
 
 	return &retry{
-		config: config,
+		config:        config,
+		baseTransport: config.BaseTransport,
 	}, nil
 }
 
@@ -146,7 +154,7 @@ func (re *retry) RoundTrip(req *http.Request) (*http.Response, error) {
 		logger      = re.config.Logger
 		currAttempt uint
 		retryableOp = func() (*http.Response, error) {
-			resp, err := re.config.BaseClient.Do(req)
+			resp, err := re.baseTransport.RoundTrip(req)
 			switch {
 			case err != nil:
 				return resp, backoff.Permanent(err)
