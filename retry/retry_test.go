@@ -174,20 +174,16 @@ func TestRoundTripper(t *testing.T) {
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			baseClient := &http.Client{
-				Transport: &mockTransport{
-					responses: tc.responses,
-					errors:    tc.errors,
-				},
-			}
-
 			retryFunc := tc.retryFunc
 			if retryFunc == nil {
 				retryFunc = zeroDelayRetry
 			}
 
 			config := retry.Config{
-				BaseClient:             baseClient,
+				BaseTransport: &mockTransport{
+					responses: tc.responses,
+					errors:    tc.errors,
+				},
 				Logger:                 &retry.NoopLogger{},
 				MaxRetries:             tc.maxRetries,
 				RetryableStatusCodes:   retry.DefaultRetryableStatusCodes,
@@ -233,4 +229,51 @@ func TestRoundTripper(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestClientWithCustomClient(t *testing.T) {
+	var (
+		ctx, cancel   = context.WithTimeout(context.Background(), time.Second)
+		mockTransport = &mockTransport{
+			responses: []*http.Response{
+				{
+					StatusCode: http.StatusOK,
+					Body:       io.NopCloser(bytes.NewBufferString("success")),
+				},
+			},
+			errors: []error{nil},
+		}
+		customClient = &http.Client{
+			Timeout: 30 * time.Second,
+		}
+		config = retry.Config{
+			BaseClient:             customClient,
+			BaseTransport:          mockTransport,
+			Logger:                 &retry.NoopLogger{},
+			MaxRetries:             3,
+			RetryableStatusCodes:   retry.DefaultRetryableStatusCodes,
+			AcceptedStatusCodes:    retry.DefaultAcceptedStatusCodes,
+			NextRetryInSecondsFunc: func(uint) int { return 0 },
+		}
+	)
+	defer cancel()
+
+	client, err := retry.NewClient(config)
+	require.NoError(t, err)
+
+	assert.Equal(t, customClient, client)
+	assert.NotEqual(t, http.DefaultClient, client)
+	assert.NotEqual(t, http.DefaultTransport, client.Transport)
+	assert.Equal(t, 30*time.Second, client.Timeout)
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, "http://smithy.security", nil)
+	require.NoError(t, err)
+
+	resp, err := client.Do(req)
+	require.NoError(t, err)
+	assert.Equal(t, http.StatusOK, resp.StatusCode)
+
+	body, err := io.ReadAll(resp.Body)
+	require.NoError(t, err)
+	assert.Equal(t, "success", string(body))
 }
