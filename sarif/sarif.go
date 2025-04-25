@@ -409,19 +409,23 @@ func (s *SarifTransformer) detectPackageFromLogicalLocation(logicalLocation sari
 	}
 	return nil
 }
+
 func (s *SarifTransformer) rulesToEcosystem() map[string]string {
 	result := map[string]string{}
 	for _, run := range s.sarifResult.Runs {
 		for _, rule := range run.Tool.Driver.Rules {
-			for _, tag := range rule.Properties.Tags {
-				if _, ok := packageurl.KnownTypes[tag]; ok {
-					result[rule.Id] = tag
+			if rule.Properties != nil {
+				for _, tag := range rule.Properties.Tags {
+					if _, ok := packageurl.KnownTypes[tag]; ok {
+						result[rule.Id] = tag
+					}
 				}
 			}
 		}
 	}
 	return result
 }
+
 func (s *SarifTransformer) mapAffected(res *sarif.Result) ([]*ocsf.AffectedCode, []*ocsf.AffectedPackage) {
 	var affectedCode []*ocsf.AffectedCode
 	var affectedPackages []*ocsf.AffectedPackage
