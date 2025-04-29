@@ -526,7 +526,9 @@ func (s *SarifTransformer) mapTitleDesc(res *sarif.Result, ruleToTools map[strin
 		return
 	}
 
-	if rule.Name != nil && *rule.Name != "" {
+	if rule.ShortDescription != nil && rule.ShortDescription.Text != "" {
+		title = rule.ShortDescription.Text
+	} else if rule.Name != nil && *rule.Name != "" { // bad ux for tools with bad ux, just dump the ruleid
 		title = *rule.Name
 	}
 
