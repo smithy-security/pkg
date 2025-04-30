@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
 	"log/slog"
 	"path/filepath"
 	"regexp"
@@ -32,6 +33,7 @@ type (
 		ruleToTools       map[string]sarif.ReportingDescriptor
 		taxasByCWEID      map[string]sarif.ReportingDescriptor
 		ruleToEcosystem   map[string]string
+		richDescription   bool
 	}
 	UUIDProvider interface {
 		String() string
@@ -56,7 +58,8 @@ func (r RealUUIDProvider) String() string {
 func NewTransformer(scanResult *sarif.SchemaJson,
 	findingsEcosystem string,
 	clock clockwork.Clock,
-	idProvider UUIDProvider) (*SarifTransformer, error) {
+	idProvider UUIDProvider,
+	richDescription bool) (*SarifTransformer, error) {
 	if scanResult == nil {
 		return nil, errors.Errorf("method 'NewTransformer called with nil scanResult")
 	}
@@ -75,6 +78,7 @@ func NewTransformer(scanResult *sarif.SchemaJson,
 		ruleToTools:       make(map[string]sarif.ReportingDescriptor),
 		taxasByCWEID:      make(map[string]sarif.ReportingDescriptor),
 		cveRegExp:         regexp.MustCompile(`(?i)(?:^|[^A-Za-z0-9-])(CVE-\d{4}-\d{4,7})(?:[^A-Za-z0-9-]|$)`),
+		richDescription:   richDescription,
 	}, nil
 }
 
@@ -244,7 +248,7 @@ func (s *SarifTransformer) transformToOCSF(toolName string, res *sarif.Result, d
 			Uid:             findingUid,
 			ProductUid:      &toolName,
 		},
-		Message: res.Message.Text,
+		Message: &desc,
 		Metadata: &ocsf.Metadata{
 			CorrelationUid: res.CorrelationGuid,
 			EventCode:      ruleID,
@@ -534,6 +538,27 @@ func (s *SarifTransformer) mapTitleDesc(res *sarif.Result, ruleToTools map[strin
 
 	if rule.FullDescription != nil && rule.FullDescription.Text != "" {
 		descr = rule.FullDescription.Text
+		if res.Message.Text != nil && *res.Message.Text != "" && len(*res.Message.Text) > len(rule.FullDescription.Text) {
+			log.Println("Sarif converter: result message is more informative than the rule description, using that as the base description")
+			descr = *res.Message.Text
+		}
+	}
+	if s.richDescription {
+		backUPDescription := descr
+		richInfoAdded := false
+		descr = fmt.Sprintf("Original Description: %s", descr)
+		if rule.Help != nil && rule.Help.Text != "" {
+			richInfoAdded = true
+			descr = fmt.Sprintf("%s\n Help: %s", descr, rule.Help.Text)
+		}
+		if rule.HelpUri != nil && *rule.HelpUri != "" {
+			richInfoAdded = true
+			descr = fmt.Sprintf("%s\n HelpUri: %s", descr, *rule.HelpUri)
+		}
+		if !richInfoAdded {
+			// remove the "Original Description:" part since the whole description is the original
+			descr = backUPDescription
+		}
 	}
 	return
 }

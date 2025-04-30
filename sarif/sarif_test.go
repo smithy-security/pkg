@@ -493,7 +493,7 @@ func Test_ParseOut(t *testing.T) {
 				},
 			},
 		}
-		transformer, err := sariftransformer.NewTransformer(&sarifOutput, "", clock, MockUUIDProvider{FixedUUID: fixedUUID})
+		transformer, err := sariftransformer.NewTransformer(&sarifOutput, "", clock, MockUUIDProvider{FixedUUID: fixedUUID}, true)
 		require.NoError(t, err)
 		actualIssues, err := transformer.ToOCSF(context.Background(), datasource)
 
@@ -560,7 +560,7 @@ func Test_ParseOut(t *testing.T) {
 					CreatedTime:     ptr.Ptr(now.Unix()),
 					CreatedTimeDt:   timestamppb.New(now),
 					DataSources:     []string{string(marshalledDataSources[0])},
-					Desc:            ptr.Ptr("(CVE-2024-47764) cookie@0.3.1"),
+					Desc:            ptr.Ptr("This file introduces a vulnerable cookie package with a medium severity vulnerability."),
 					FirstSeenTime:   ptr.Ptr(now.Unix()),
 					FirstSeenTimeDt: timestamppb.New(now),
 					LastSeenTime:    ptr.Ptr(now.Unix()),
@@ -606,7 +606,7 @@ func Test_ParseOut(t *testing.T) {
 							Desc: ptr.Ptr("(CVE-2024-47764) cookie@0.3.1"),
 							Uid:  "CVE-2024-47764",
 						},
-						Desc:            ptr.Ptr("(CVE-2024-47764) cookie@0.3.1"),
+						Desc:            ptr.Ptr("This file introduces a vulnerable cookie package with a medium severity vulnerability."),
 						FirstSeenTime:   ptr.Ptr(now.Unix()),
 						FirstSeenTimeDt: timestamppb.New(now),
 						FixAvailable:    ptr.Ptr(true),
@@ -634,7 +634,7 @@ func Test_ParseOut(t *testing.T) {
 					CreatedTime:     ptr.Ptr(now.Unix()),
 					CreatedTimeDt:   timestamppb.New(now),
 					DataSources:     []string{string(marshalledDataSources[1])},
-					Desc:            ptr.Ptr("(CVE-2020-36048) engine.io@1.8.5"),
+					Desc:            ptr.Ptr("This file introduces a vulnerable engine.io package with a high severity vulnerability."),
 					FirstSeenTime:   ptr.Ptr(now.Unix()),
 					FirstSeenTimeDt: timestamppb.New(now),
 					LastSeenTime:    ptr.Ptr(now.Unix()),
@@ -683,7 +683,7 @@ func Test_ParseOut(t *testing.T) {
 						Cwe: &ocsf.Cwe{
 							Uid: "400",
 						},
-						Desc:            ptr.Ptr("(CVE-2020-36048) engine.io@1.8.5"),
+						Desc:            ptr.Ptr("This file introduces a vulnerable engine.io package with a high severity vulnerability."),
 						FirstSeenTime:   ptr.Ptr(now.Unix()),
 						FirstSeenTimeDt: timestamppb.New(now),
 						FixAvailable:    ptr.Ptr(true),
@@ -711,7 +711,7 @@ func Test_ParseOut(t *testing.T) {
 					CreatedTime:     ptr.Ptr(now.Unix()),
 					CreatedTimeDt:   timestamppb.New(now),
 					DataSources:     []string{string(marshalledDataSources[2])},
-					Desc:            ptr.Ptr("(CVE-2022-41940) engine.io@1.8.5"),
+					Desc:            ptr.Ptr("This file introduces a vulnerable engine.io package with a high severity vulnerability."),
 					FirstSeenTime:   ptr.Ptr(now.Unix()),
 					FirstSeenTimeDt: timestamppb.New(now),
 					LastSeenTime:    ptr.Ptr(now.Unix()),
@@ -760,7 +760,7 @@ func Test_ParseOut(t *testing.T) {
 						Cwe: &ocsf.Cwe{
 							Uid: "400",
 						},
-						Desc:            ptr.Ptr("(CVE-2022-41940) engine.io@1.8.5"),
+						Desc:            ptr.Ptr("This file introduces a vulnerable engine.io package with a high severity vulnerability."),
 						FirstSeenTime:   ptr.Ptr(now.Unix()),
 						FirstSeenTimeDt: timestamppb.New(now),
 						FixAvailable:    ptr.Ptr(true),
@@ -775,7 +775,7 @@ func Test_ParseOut(t *testing.T) {
 				},
 			},
 		}
-		transformer, err := sariftransformer.NewTransformer(&sarifOutput, "npm", clock, MockUUIDProvider{FixedUUID: fixedUUID})
+		transformer, err := sariftransformer.NewTransformer(&sarifOutput, "npm", clock, MockUUIDProvider{FixedUUID: fixedUUID}, true)
 		require.NoError(t, err)
 		actualIssues, err := transformer.ToOCSF(context.Background(), dataSource)
 
@@ -878,7 +878,7 @@ func Test_ParseOut(t *testing.T) {
 					CreatedTime:     ptr.Ptr(now.Unix()),
 					CreatedTimeDt:   timestamppb.New(now),
 					DataSources:     []string{string(marshalledDataSources[0])},
-					Desc:            ptr.Ptr("Converting the result of `strconv.Atoi`, `strconv.ParseInt`, and `strconv.ParseUint` to integer types of smaller bit size can produce unexpected values."),
+					Desc:            ptr.Ptr("Incorrect conversion of an integer with architecture-dependent bit size from [strconv.Atoi](1) to a lower bit size type int32 without an upper bound check."),
 					FirstSeenTime:   ptr.Ptr(now.Unix()),
 					FirstSeenTimeDt: timestamppb.New(now),
 					LastSeenTime:    ptr.Ptr(now.Unix()),
@@ -919,7 +919,7 @@ func Test_ParseOut(t *testing.T) {
 						Cwe: &ocsf.Cwe{
 							Uid: "190",
 						},
-						Desc:            ptr.Ptr("Converting the result of `strconv.Atoi`, `strconv.ParseInt`, and `strconv.ParseUint` to integer types of smaller bit size can produce unexpected values."),
+						Desc:            ptr.Ptr("Incorrect conversion of an integer with architecture-dependent bit size from [strconv.Atoi](1) to a lower bit size type int32 without an upper bound check."),
 						FirstSeenTime:   ptr.Ptr(now.Unix()),
 						FirstSeenTimeDt: timestamppb.New(now),
 						FixAvailable:    ptr.Ptr(false),
@@ -946,7 +946,7 @@ func Test_ParseOut(t *testing.T) {
 					CreatedTime:     ptr.Ptr(now.Unix()),
 					CreatedTimeDt:   timestamppb.New(now),
 					DataSources:     []string{string(marshalledDataSources[1])},
-					Desc:            ptr.Ptr("Converting the result of `strconv.Atoi`, `strconv.ParseInt`, and `strconv.ParseUint` to integer types of smaller bit size can produce unexpected values."),
+					Desc:            ptr.Ptr("Incorrect conversion of an integer with architecture-dependent bit size from [strconv.Atoi](1) to a lower bit size type int32 without an upper bound check."),
 					FirstSeenTime:   ptr.Ptr(now.Unix()),
 					FirstSeenTimeDt: timestamppb.New(now),
 					LastSeenTime:    ptr.Ptr(now.Unix()),
@@ -987,7 +987,7 @@ func Test_ParseOut(t *testing.T) {
 						Cwe: &ocsf.Cwe{
 							Uid: "190",
 						},
-						Desc:            ptr.Ptr("Converting the result of `strconv.Atoi`, `strconv.ParseInt`, and `strconv.ParseUint` to integer types of smaller bit size can produce unexpected values."),
+						Desc:            ptr.Ptr("Incorrect conversion of an integer with architecture-dependent bit size from [strconv.Atoi](1) to a lower bit size type int32 without an upper bound check."),
 						FirstSeenTime:   ptr.Ptr(now.Unix()),
 						FirstSeenTimeDt: timestamppb.New(now),
 						FixAvailable:    ptr.Ptr(false),
@@ -1014,7 +1014,7 @@ func Test_ParseOut(t *testing.T) {
 					CreatedTime:     ptr.Ptr(now.Unix()),
 					CreatedTimeDt:   timestamppb.New(now),
 					DataSources:     []string{string(marshalledDataSources[2])},
-					Desc:            ptr.Ptr("Converting the result of `strconv.Atoi`, `strconv.ParseInt`, and `strconv.ParseUint` to integer types of smaller bit size can produce unexpected values."),
+					Desc:            ptr.Ptr("Incorrect conversion of an integer with architecture-dependent bit size from [strconv.Atoi](1) to a lower bit size type int32 without an upper bound check."),
 					FirstSeenTime:   ptr.Ptr(now.Unix()),
 					FirstSeenTimeDt: timestamppb.New(now),
 					LastSeenTime:    ptr.Ptr(now.Unix()),
@@ -1055,7 +1055,7 @@ func Test_ParseOut(t *testing.T) {
 						Cwe: &ocsf.Cwe{
 							Uid: "190",
 						},
-						Desc:            ptr.Ptr("Converting the result of `strconv.Atoi`, `strconv.ParseInt`, and `strconv.ParseUint` to integer types of smaller bit size can produce unexpected values."),
+						Desc:            ptr.Ptr("Incorrect conversion of an integer with architecture-dependent bit size from [strconv.Atoi](1) to a lower bit size type int32 without an upper bound check."),
 						FirstSeenTime:   ptr.Ptr(now.Unix()),
 						FirstSeenTimeDt: timestamppb.New(now),
 						FixAvailable:    ptr.Ptr(false),
@@ -1069,7 +1069,7 @@ func Test_ParseOut(t *testing.T) {
 				},
 			},
 		}
-		transformer, err := sariftransformer.NewTransformer(&sarifOutput, "", clock, MockUUIDProvider{FixedUUID: fixedUUID})
+		transformer, err := sariftransformer.NewTransformer(&sarifOutput, "", clock, MockUUIDProvider{FixedUUID: fixedUUID}, true)
 		require.NoError(t, err)
 		actualIssues, err := transformer.ToOCSF(context.Background(), dataSource)
 		require.NoError(t, err)
@@ -1174,7 +1174,7 @@ func Test_ParseOut(t *testing.T) {
 					CreatedTime:     ptr.Ptr(now.Unix()),
 					CreatedTimeDt:   timestamppb.New(now),
 					DataSources:     []string{string(marshalledDataSources[0])},
-					Desc:            ptr.Ptr("AWS Access Key ID Value detected. This is a sensitive credential and should not be hardcoded here. Instead, read this value from an environment variable or keep it in a separate, private file."),
+					Desc:            ptr.Ptr("Original Description: AWS Access Key ID Value detected. This is a sensitive credential and should not be hardcoded here. Instead, read this value from an environment variable or keep it in a separate, private file.\n Help: AWS Access Key ID Value detected. This is a sensitive credential and should not be hardcoded here. Instead, read this value from an environment variable or keep it in a separate, private file.\n💎 Enable cross-file analysis and Pro rules for free at sg.run/pro\n HelpUri: https://semgrep.dev/r/generic.secrets.security.detected-aws-access-key-id-value.detected-aws-access-key-id-value"),
 					FirstSeenTime:   ptr.Ptr(now.Unix()),
 					FirstSeenTimeDt: timestamppb.New(now),
 					LastSeenTime:    ptr.Ptr(now.Unix()),
@@ -1185,7 +1185,7 @@ func Test_ParseOut(t *testing.T) {
 					Uid:             fixedUUID,
 					Title:           "Semgrep Finding: generic.secrets.security.detected-aws-access-key-id-value.detected-aws-access-key-id-value",
 				},
-				Message: ptr.Ptr("AWS Access Key ID Value detected. This is a sensitive credential and should not be hardcoded here. Instead, read this value from an environment variable or keep it in a separate, private file."),
+				Message: ptr.Ptr("Original Description: AWS Access Key ID Value detected. This is a sensitive credential and should not be hardcoded here. Instead, read this value from an environment variable or keep it in a separate, private file.\n Help: AWS Access Key ID Value detected. This is a sensitive credential and should not be hardcoded here. Instead, read this value from an environment variable or keep it in a separate, private file.\n💎 Enable cross-file analysis and Pro rules for free at sg.run/pro\n HelpUri: https://semgrep.dev/r/generic.secrets.security.detected-aws-access-key-id-value.detected-aws-access-key-id-value"),
 				Metadata: &ocsf.Metadata{
 					EventCode: ptr.Ptr("generic.secrets.security.detected-aws-access-key-id-value.detected-aws-access-key-id-value"),
 					Product: &ocsf.Product{
@@ -1217,7 +1217,7 @@ func Test_ParseOut(t *testing.T) {
 						Cwe: &ocsf.Cwe{
 							Uid: "798",
 						},
-						Desc:            ptr.Ptr("AWS Access Key ID Value detected. This is a sensitive credential and should not be hardcoded here. Instead, read this value from an environment variable or keep it in a separate, private file."),
+						Desc:            ptr.Ptr("Original Description: AWS Access Key ID Value detected. This is a sensitive credential and should not be hardcoded here. Instead, read this value from an environment variable or keep it in a separate, private file.\n Help: AWS Access Key ID Value detected. This is a sensitive credential and should not be hardcoded here. Instead, read this value from an environment variable or keep it in a separate, private file.\n💎 Enable cross-file analysis and Pro rules for free at sg.run/pro\n HelpUri: https://semgrep.dev/r/generic.secrets.security.detected-aws-access-key-id-value.detected-aws-access-key-id-value"),
 						FirstSeenTime:   ptr.Ptr(now.Unix()),
 						FirstSeenTimeDt: timestamppb.New(now),
 						FixAvailable:    ptr.Ptr(false),
@@ -1244,7 +1244,7 @@ func Test_ParseOut(t *testing.T) {
 					CreatedTime:     ptr.Ptr(now.Unix()),
 					CreatedTimeDt:   timestamppb.New(now),
 					DataSources:     []string{string(marshalledDataSources[1])},
-					Desc:            ptr.Ptr("A session cookie was detected without setting the 'HttpOnly' flag. The 'HttpOnly' flag for cookies instructs the browser to forbid client-side scripts from reading the cookie which mitigates XSS attacks. Set the 'HttpOnly' flag by setting 'HttpOnly' to 'true' in the Options struct."),
+					Desc:            ptr.Ptr("Original Description: A session cookie was detected without setting the 'HttpOnly' flag. The 'HttpOnly' flag for cookies instructs the browser to forbid client-side scripts from reading the cookie which mitigates XSS attacks. Set the 'HttpOnly' flag by setting 'HttpOnly' to 'true' in the Options struct.\n Help: A session cookie was detected without setting the 'HttpOnly' flag. The 'HttpOnly' flag for cookies instructs the browser to forbid client-side scripts from reading the cookie which mitigates XSS attacks. Set the 'HttpOnly' flag by setting 'HttpOnly' to 'true' in the Options struct.\n💎 Enable cross-file analysis and Pro rules for free at sg.run/pro\n HelpUri: https://semgrep.dev/r/go.gorilla.security.audit.session-cookie-missing-httponly.session-cookie-missing-httponly"),
 					FirstSeenTime:   ptr.Ptr(now.Unix()),
 					FirstSeenTimeDt: timestamppb.New(now),
 					LastSeenTime:    ptr.Ptr(now.Unix()),
@@ -1255,7 +1255,7 @@ func Test_ParseOut(t *testing.T) {
 					Uid:             fixedUUID,
 					Title:           "Semgrep Finding: go.gorilla.security.audit.session-cookie-missing-httponly.session-cookie-missing-httponly",
 				},
-				Message: ptr.Ptr("A session cookie was detected without setting the 'HttpOnly' flag. The 'HttpOnly' flag for cookies instructs the browser to forbid client-side scripts from reading the cookie which mitigates XSS attacks. Set the 'HttpOnly' flag by setting 'HttpOnly' to 'true' in the Options struct."),
+				Message: ptr.Ptr("Original Description: A session cookie was detected without setting the 'HttpOnly' flag. The 'HttpOnly' flag for cookies instructs the browser to forbid client-side scripts from reading the cookie which mitigates XSS attacks. Set the 'HttpOnly' flag by setting 'HttpOnly' to 'true' in the Options struct.\n Help: A session cookie was detected without setting the 'HttpOnly' flag. The 'HttpOnly' flag for cookies instructs the browser to forbid client-side scripts from reading the cookie which mitigates XSS attacks. Set the 'HttpOnly' flag by setting 'HttpOnly' to 'true' in the Options struct.\n💎 Enable cross-file analysis and Pro rules for free at sg.run/pro\n HelpUri: https://semgrep.dev/r/go.gorilla.security.audit.session-cookie-missing-httponly.session-cookie-missing-httponly"),
 				Metadata: &ocsf.Metadata{
 					EventCode: ptr.Ptr("go.gorilla.security.audit.session-cookie-missing-httponly.session-cookie-missing-httponly"),
 					Product: &ocsf.Product{
@@ -1287,7 +1287,7 @@ func Test_ParseOut(t *testing.T) {
 						Cwe: &ocsf.Cwe{
 							Uid: "1004",
 						},
-						Desc:            ptr.Ptr("A session cookie was detected without setting the 'HttpOnly' flag. The 'HttpOnly' flag for cookies instructs the browser to forbid client-side scripts from reading the cookie which mitigates XSS attacks. Set the 'HttpOnly' flag by setting 'HttpOnly' to 'true' in the Options struct."),
+						Desc:            ptr.Ptr("Original Description: A session cookie was detected without setting the 'HttpOnly' flag. The 'HttpOnly' flag for cookies instructs the browser to forbid client-side scripts from reading the cookie which mitigates XSS attacks. Set the 'HttpOnly' flag by setting 'HttpOnly' to 'true' in the Options struct.\n Help: A session cookie was detected without setting the 'HttpOnly' flag. The 'HttpOnly' flag for cookies instructs the browser to forbid client-side scripts from reading the cookie which mitigates XSS attacks. Set the 'HttpOnly' flag by setting 'HttpOnly' to 'true' in the Options struct.\n💎 Enable cross-file analysis and Pro rules for free at sg.run/pro\n HelpUri: https://semgrep.dev/r/go.gorilla.security.audit.session-cookie-missing-httponly.session-cookie-missing-httponly"),
 						FirstSeenTime:   ptr.Ptr(now.Unix()),
 						FirstSeenTimeDt: timestamppb.New(now),
 						FixAvailable:    ptr.Ptr(true),
@@ -1314,7 +1314,7 @@ func Test_ParseOut(t *testing.T) {
 					CreatedTime:     ptr.Ptr(now.Unix()),
 					CreatedTimeDt:   timestamppb.New(now),
 					DataSources:     []string{string(marshalledDataSources[2])},
-					Desc:            ptr.Ptr("Detected non-static command inside Command. Audit the input to 'exec.Command'. If unverified user data can reach this call site, this is a code injection vulnerability. A malicious actor can inject a malicious script to execute arbitrary code."),
+					Desc:            ptr.Ptr("Original Description: Detected non-static command inside Command. Audit the input to 'exec.Command'. If unverified user data can reach this call site, this is a code injection vulnerability. A malicious actor can inject a malicious script to execute arbitrary code.\n Help: Detected non-static command inside Command. Audit the input to 'exec.Command'. If unverified user data can reach this call site, this is a code injection vulnerability. A malicious actor can inject a malicious script to execute arbitrary code.\n💎 Enable cross-file analysis and Pro rules for free at sg.run/pro\n HelpUri: https://semgrep.dev/r/go.lang.security.audit.dangerous-exec-command.dangerous-exec-command"),
 					FirstSeenTime:   ptr.Ptr(now.Unix()),
 					FirstSeenTimeDt: timestamppb.New(now),
 					LastSeenTime:    ptr.Ptr(now.Unix()),
@@ -1325,7 +1325,7 @@ func Test_ParseOut(t *testing.T) {
 					Uid:             fixedUUID,
 					Title:           "Semgrep Finding: go.lang.security.audit.dangerous-exec-command.dangerous-exec-command",
 				},
-				Message: ptr.Ptr("Detected non-static command inside Command. Audit the input to 'exec.Command'. If unverified user data can reach this call site, this is a code injection vulnerability. A malicious actor can inject a malicious script to execute arbitrary code."),
+				Message: ptr.Ptr("Original Description: Detected non-static command inside Command. Audit the input to 'exec.Command'. If unverified user data can reach this call site, this is a code injection vulnerability. A malicious actor can inject a malicious script to execute arbitrary code.\n Help: Detected non-static command inside Command. Audit the input to 'exec.Command'. If unverified user data can reach this call site, this is a code injection vulnerability. A malicious actor can inject a malicious script to execute arbitrary code.\n💎 Enable cross-file analysis and Pro rules for free at sg.run/pro\n HelpUri: https://semgrep.dev/r/go.lang.security.audit.dangerous-exec-command.dangerous-exec-command"),
 				Metadata: &ocsf.Metadata{
 					EventCode: ptr.Ptr("go.lang.security.audit.dangerous-exec-command.dangerous-exec-command"),
 					Product: &ocsf.Product{
@@ -1354,7 +1354,7 @@ func Test_ParseOut(t *testing.T) {
 								EndLine:   ptr.Ptr(int32(9)),
 							},
 						},
-						Desc:            ptr.Ptr("Detected non-static command inside Command. Audit the input to 'exec.Command'. If unverified user data can reach this call site, this is a code injection vulnerability. A malicious actor can inject a malicious script to execute arbitrary code."),
+						Desc:            ptr.Ptr("Original Description: Detected non-static command inside Command. Audit the input to 'exec.Command'. If unverified user data can reach this call site, this is a code injection vulnerability. A malicious actor can inject a malicious script to execute arbitrary code.\n Help: Detected non-static command inside Command. Audit the input to 'exec.Command'. If unverified user data can reach this call site, this is a code injection vulnerability. A malicious actor can inject a malicious script to execute arbitrary code.\n💎 Enable cross-file analysis and Pro rules for free at sg.run/pro\n HelpUri: https://semgrep.dev/r/go.lang.security.audit.dangerous-exec-command.dangerous-exec-command"),
 						FirstSeenTime:   ptr.Ptr(now.Unix()),
 						FirstSeenTimeDt: timestamppb.New(now),
 						FixAvailable:    ptr.Ptr(false),
@@ -1368,7 +1368,7 @@ func Test_ParseOut(t *testing.T) {
 				},
 			},
 		}
-		transformer, err := sariftransformer.NewTransformer(&sarifOutput, "", clock, MockUUIDProvider{FixedUUID: fixedUUID})
+		transformer, err := sariftransformer.NewTransformer(&sarifOutput, "", clock, MockUUIDProvider{FixedUUID: fixedUUID}, true)
 		require.NoError(t, err)
 		actualIssues, err := transformer.ToOCSF(context.Background(), dataSource)
 		require.NoError(t, err)
@@ -1445,7 +1445,7 @@ func Test_ParseOut(t *testing.T) {
 					CreatedTime:     ptr.Ptr(now.Unix()),
 					CreatedTimeDt:   timestamppb.New(now),
 					DataSources:     []string{string(marshalledDataSources[0])},
-					Desc:            ptr.Ptr("chroot in GNU coreutils, when used with --userspec, allows local users to escape to the parent session via a crafted TIOCSTI ioctl call, which pushes characters to the terminal's input buffer."),
+					Desc:            ptr.Ptr("Original Description: chroot in GNU coreutils, when used with --userspec, allows local users to escape to the parent session via a crafted TIOCSTI ioctl call, which pushes characters to the terminal's input buffer.\n Help: Vulnerability CVE-2016-2781\nSeverity: LOW\nPackage: coreutils\nFixed Version: \nLink: [CVE-2016-2781](https://avd.aquasec.com/nvd/cve-2016-2781)\nchroot in GNU coreutils, when used with --userspec, allows local users to escape to the parent session via a crafted TIOCSTI ioctl call, which pushes characters to the terminal's input buffer.\n HelpUri: https://avd.aquasec.com/nvd/cve-2016-2781"),
 					FirstSeenTime:   ptr.Ptr(now.Unix()),
 					FirstSeenTimeDt: timestamppb.New(now),
 					LastSeenTime:    ptr.Ptr(now.Unix()),
@@ -1456,7 +1456,7 @@ func Test_ParseOut(t *testing.T) {
 					Uid:             "d258a2dc-b324-46aa-9cea-28ba8d44fcb8",
 					Title:           "coreutils: Non-privileged session can escape to the parent session in chroot",
 				},
-				Message: ptr.Ptr("Package: coreutils\nInstalled Version: 9.4-3ubuntu6\nVulnerability CVE-2016-2781\nSeverity: LOW\nFixed Version: \nLink: [CVE-2016-2781](https://avd.aquasec.com/nvd/cve-2016-2781)"),
+				Message: ptr.Ptr("Original Description: chroot in GNU coreutils, when used with --userspec, allows local users to escape to the parent session via a crafted TIOCSTI ioctl call, which pushes characters to the terminal's input buffer.\n Help: Vulnerability CVE-2016-2781\nSeverity: LOW\nPackage: coreutils\nFixed Version: \nLink: [CVE-2016-2781](https://avd.aquasec.com/nvd/cve-2016-2781)\nchroot in GNU coreutils, when used with --userspec, allows local users to escape to the parent session via a crafted TIOCSTI ioctl call, which pushes characters to the terminal's input buffer.\n HelpUri: https://avd.aquasec.com/nvd/cve-2016-2781"),
 				Metadata: &ocsf.Metadata{
 					EventCode: ptr.Ptr("CVE-2016-2781"),
 					Product: &ocsf.Product{
@@ -1492,7 +1492,7 @@ func Test_ParseOut(t *testing.T) {
 							Desc: ptr.Ptr("chroot in GNU coreutils, when used with --userspec, allows local users to escape to the parent session via a crafted TIOCSTI ioctl call, which pushes characters to the terminal's input buffer."),
 							Uid:  "CVE-2016-2781",
 						},
-						Desc:            ptr.Ptr("chroot in GNU coreutils, when used with --userspec, allows local users to escape to the parent session via a crafted TIOCSTI ioctl call, which pushes characters to the terminal's input buffer."),
+						Desc:            ptr.Ptr("Original Description: chroot in GNU coreutils, when used with --userspec, allows local users to escape to the parent session via a crafted TIOCSTI ioctl call, which pushes characters to the terminal's input buffer.\n Help: Vulnerability CVE-2016-2781\nSeverity: LOW\nPackage: coreutils\nFixed Version: \nLink: [CVE-2016-2781](https://avd.aquasec.com/nvd/cve-2016-2781)\nchroot in GNU coreutils, when used with --userspec, allows local users to escape to the parent session via a crafted TIOCSTI ioctl call, which pushes characters to the terminal's input buffer.\n HelpUri: https://avd.aquasec.com/nvd/cve-2016-2781"),
 						FirstSeenTime:   ptr.Ptr(now.Unix()),
 						FirstSeenTimeDt: timestamppb.New(now),
 						FixAvailable:    ptr.Ptr(false),
@@ -1519,7 +1519,7 @@ func Test_ParseOut(t *testing.T) {
 					CreatedTime:     ptr.Ptr(now.Unix()),
 					CreatedTimeDt:   timestamppb.New(now),
 					DataSources:     []string{string(marshalledDataSources[1])},
-					Desc:            ptr.Ptr("GnuPG can be made to spin on a relatively small input by (for example) crafting a public key with thousands of signatures attached, compressed down to just a few KB."),
+					Desc:            ptr.Ptr("Original Description: Package: gpgv\nInstalled Version: 2.4.4-2ubuntu17.2\nVulnerability CVE-2022-3219\nSeverity: LOW\nFixed Version: \nLink: [CVE-2022-3219](https://avd.aquasec.com/nvd/cve-2022-3219)\n Help: Vulnerability CVE-2022-3219\nSeverity: LOW\nPackage: gpgv\nFixed Version: \nLink: [CVE-2022-3219](https://avd.aquasec.com/nvd/cve-2022-3219)\nGnuPG can be made to spin on a relatively small input by (for example) crafting a public key with thousands of signatures attached, compressed down to just a few KB.\n HelpUri: https://avd.aquasec.com/nvd/cve-2022-3219"),
 					FirstSeenTime:   ptr.Ptr(now.Unix()),
 					FirstSeenTimeDt: timestamppb.New(now),
 					LastSeenTime:    ptr.Ptr(now.Unix()),
@@ -1530,7 +1530,7 @@ func Test_ParseOut(t *testing.T) {
 					Uid:             "d258a2dc-b324-46aa-9cea-28ba8d44fcb8",
 					Title:           "gnupg: denial of service issue (resource consumption) using compressed packets",
 				},
-				Message: ptr.Ptr("Package: gpgv\nInstalled Version: 2.4.4-2ubuntu17.2\nVulnerability CVE-2022-3219\nSeverity: LOW\nFixed Version: \nLink: [CVE-2022-3219](https://avd.aquasec.com/nvd/cve-2022-3219)"),
+				Message: ptr.Ptr("Original Description: Package: gpgv\nInstalled Version: 2.4.4-2ubuntu17.2\nVulnerability CVE-2022-3219\nSeverity: LOW\nFixed Version: \nLink: [CVE-2022-3219](https://avd.aquasec.com/nvd/cve-2022-3219)\n Help: Vulnerability CVE-2022-3219\nSeverity: LOW\nPackage: gpgv\nFixed Version: \nLink: [CVE-2022-3219](https://avd.aquasec.com/nvd/cve-2022-3219)\nGnuPG can be made to spin on a relatively small input by (for example) crafting a public key with thousands of signatures attached, compressed down to just a few KB.\n HelpUri: https://avd.aquasec.com/nvd/cve-2022-3219"),
 				Metadata: &ocsf.Metadata{
 					EventCode: ptr.Ptr("CVE-2022-3219"),
 					Product: &ocsf.Product{
@@ -1566,7 +1566,7 @@ func Test_ParseOut(t *testing.T) {
 							Desc: ptr.Ptr("GnuPG can be made to spin on a relatively small input by (for example) crafting a public key with thousands of signatures attached, compressed down to just a few KB."),
 							Uid:  "CVE-2022-3219",
 						},
-						Desc:            ptr.Ptr("GnuPG can be made to spin on a relatively small input by (for example) crafting a public key with thousands of signatures attached, compressed down to just a few KB."),
+						Desc:            ptr.Ptr("Original Description: Package: gpgv\nInstalled Version: 2.4.4-2ubuntu17.2\nVulnerability CVE-2022-3219\nSeverity: LOW\nFixed Version: \nLink: [CVE-2022-3219](https://avd.aquasec.com/nvd/cve-2022-3219)\n Help: Vulnerability CVE-2022-3219\nSeverity: LOW\nPackage: gpgv\nFixed Version: \nLink: [CVE-2022-3219](https://avd.aquasec.com/nvd/cve-2022-3219)\nGnuPG can be made to spin on a relatively small input by (for example) crafting a public key with thousands of signatures attached, compressed down to just a few KB.\n HelpUri: https://avd.aquasec.com/nvd/cve-2022-3219"),
 						FirstSeenTime:   ptr.Ptr(now.Unix()),
 						FirstSeenTimeDt: timestamppb.New(now),
 						FixAvailable:    ptr.Ptr(false),
@@ -1580,7 +1580,7 @@ func Test_ParseOut(t *testing.T) {
 				},
 			},
 		}
-		transformer, err := sariftransformer.NewTransformer(&sarifOutput, "docker", clock, MockUUIDProvider{FixedUUID: fixedUUID})
+		transformer, err := sariftransformer.NewTransformer(&sarifOutput, "docker", clock, MockUUIDProvider{FixedUUID: fixedUUID}, true)
 		require.NoError(t, err)
 		actualIssues, err := transformer.ToOCSF(context.Background(), dataSource)
 		require.NoError(t, err)
@@ -1799,7 +1799,7 @@ func Test_ParseOut(t *testing.T) {
 					CreatedTime:     ptr.Ptr(now.Unix()),
 					CreatedTimeDt:   timestamppb.New(now),
 					DataSources:     []string{string(marshalledDataSources[2])},
-					Desc:            ptr.Ptr("SQL injection may be possible."),
+					Desc:            ptr.Ptr("The original page results were successfully replicated using the expression [5-2] as the parameter value\nThe parameter value being modified was stripped from the HTML output for the purposes of the comparison."),
 					FirstSeenTime:   ptr.Ptr(now.Unix()),
 					FirstSeenTimeDt: timestamppb.New(now),
 					LastSeenTime:    ptr.Ptr(now.Unix()),
@@ -1832,7 +1832,7 @@ func Test_ParseOut(t *testing.T) {
 							SrcUrl: ptr.Ptr("https://cwe.mitre.org/data/definitions/89.html"),
 							Uid:    "89",
 						},
-						Desc:            ptr.Ptr("SQL injection may be possible."),
+						Desc:            ptr.Ptr("The original page results were successfully replicated using the expression [5-2] as the parameter value\nThe parameter value being modified was stripped from the HTML output for the purposes of the comparison."),
 						FirstSeenTime:   ptr.Ptr(now.Unix()),
 						FirstSeenTimeDt: timestamppb.New(now),
 						FixAvailable:    ptr.Ptr(false),
@@ -1846,7 +1846,7 @@ func Test_ParseOut(t *testing.T) {
 				},
 			},
 		}
-		transformer, err := sariftransformer.NewTransformer(&sarifOutput, "", clock, MockUUIDProvider{FixedUUID: fixedUUID})
+		transformer, err := sariftransformer.NewTransformer(&sarifOutput, "", clock, MockUUIDProvider{FixedUUID: fixedUUID}, true)
 		require.NoError(t, err)
 		actualIssues, err := transformer.ToOCSF(context.Background(), dataSource)
 		require.NoError(t, err)
@@ -1911,7 +1911,7 @@ func Test_ParseOut(t *testing.T) {
 					CreatedTime:     ptr.Ptr(now.Unix()),
 					CreatedTimeDt:   timestamppb.New(now),
 					DataSources:     []string{string(marshalledDataSources[0])},
-					Desc:            ptr.Ptr("(CVE-2024-47764) cookie@0.3.1"),
+					Desc:            ptr.Ptr("This file introduces a vulnerable cookie package with a medium severity vulnerability."),
 					FirstSeenTime:   ptr.Ptr(now.Unix()),
 					FirstSeenTimeDt: timestamppb.New(now),
 					LastSeenTime:    ptr.Ptr(now.Unix()),
@@ -1957,7 +1957,7 @@ func Test_ParseOut(t *testing.T) {
 							Desc: ptr.Ptr("(CVE-2024-47764) cookie@0.3.1"),
 							Uid:  "CVE-2024-47764",
 						},
-						Desc:            ptr.Ptr("(CVE-2024-47764) cookie@0.3.1"),
+						Desc:            ptr.Ptr("This file introduces a vulnerable cookie package with a medium severity vulnerability."),
 						FirstSeenTime:   ptr.Ptr(now.Unix()),
 						FirstSeenTimeDt: timestamppb.New(now),
 						FixAvailable:    ptr.Ptr(true),
@@ -1985,7 +1985,7 @@ func Test_ParseOut(t *testing.T) {
 					CreatedTime:     ptr.Ptr(now.Unix()),
 					CreatedTimeDt:   timestamppb.New(now),
 					DataSources:     []string{string(marshalledDataSources[1])},
-					Desc:            ptr.Ptr("(CVE-2020-36048) engine.io@1.8.5"),
+					Desc:            ptr.Ptr("This file introduces a vulnerable engine.io package with a high severity vulnerability."),
 					FirstSeenTime:   ptr.Ptr(now.Unix()),
 					FirstSeenTimeDt: timestamppb.New(now),
 					LastSeenTime:    ptr.Ptr(now.Unix()),
@@ -2034,7 +2034,7 @@ func Test_ParseOut(t *testing.T) {
 						Cwe: &ocsf.Cwe{
 							Uid: "400",
 						},
-						Desc:            ptr.Ptr("(CVE-2020-36048) engine.io@1.8.5"),
+						Desc:            ptr.Ptr("This file introduces a vulnerable engine.io package with a high severity vulnerability."),
 						FirstSeenTime:   ptr.Ptr(now.Unix()),
 						FirstSeenTimeDt: timestamppb.New(now),
 						FixAvailable:    ptr.Ptr(true),
@@ -2062,7 +2062,7 @@ func Test_ParseOut(t *testing.T) {
 					CreatedTime:     ptr.Ptr(now.Unix()),
 					CreatedTimeDt:   timestamppb.New(now),
 					DataSources:     []string{string(marshalledDataSources[2])},
-					Desc:            ptr.Ptr("(CVE-2022-41940) engine.io@1.8.5"),
+					Desc:            ptr.Ptr("This file introduces a vulnerable engine.io package with a high severity vulnerability."),
 					FirstSeenTime:   ptr.Ptr(now.Unix()),
 					FirstSeenTimeDt: timestamppb.New(now),
 					LastSeenTime:    ptr.Ptr(now.Unix()),
@@ -2111,7 +2111,7 @@ func Test_ParseOut(t *testing.T) {
 						Cwe: &ocsf.Cwe{
 							Uid: "400",
 						},
-						Desc:            ptr.Ptr("(CVE-2022-41940) engine.io@1.8.5"),
+						Desc:            ptr.Ptr("This file introduces a vulnerable engine.io package with a high severity vulnerability."),
 						FirstSeenTime:   ptr.Ptr(now.Unix()),
 						FirstSeenTimeDt: timestamppb.New(now),
 						FixAvailable:    ptr.Ptr(true),
@@ -2126,7 +2126,7 @@ func Test_ParseOut(t *testing.T) {
 				},
 			},
 		}
-		transformer, err := sariftransformer.NewTransformer(&sarifOutput, "", clock, MockUUIDProvider{FixedUUID: fixedUUID})
+		transformer, err := sariftransformer.NewTransformer(&sarifOutput, "", clock, MockUUIDProvider{FixedUUID: fixedUUID}, true)
 		require.NoError(t, err)
 		actualIssues, err := transformer.ToOCSF(context.Background(), dataSource)
 
