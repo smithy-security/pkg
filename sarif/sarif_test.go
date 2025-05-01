@@ -243,7 +243,54 @@ func Test_ParseOut(t *testing.T) {
 		require.NoError(t, err)
 		var sarifOutput sarif.SchemaJson
 		require.NoError(t, json.Unmarshal(exampleOutput, &sarifOutput))
+		marshalledDataSources := []string{}
+		datasource := &ocsffindinginfo.DataSource{
+			TargetType: ocsffindinginfo.DataSource_TARGET_TYPE_REPOSITORY,
+			Uri: &ocsffindinginfo.DataSource_URI{
+				UriSchema: ocsffindinginfo.DataSource_URI_SCHEMA_FILE,
+				Path:      "file://main.go",
+			},
+			SourceCodeMetadata: &ocsffindinginfo.DataSource_SourceCodeMetadata{
+				RepositoryUrl: "github.com/foo/bar",
+				Reference:     "main",
+			},
+		}
 
+		// set for expected results
+		datasource.LocationData = &ocsffindinginfo.DataSource_FileFindingLocationData_{
+			FileFindingLocationData: &ocsffindinginfo.DataSource_FileFindingLocationData{
+				StartLine:   83,
+				EndLine:     0,
+				StartColumn: 7,
+				EndColumn:   0,
+			}}
+		marshalledDataSource, err := protojson.Marshal(datasource)
+		require.NoError(t, err)
+
+		marshalledDataSources = append(marshalledDataSources, string(marshalledDataSource))
+
+		datasource.LocationData = &ocsffindinginfo.DataSource_FileFindingLocationData_{
+			FileFindingLocationData: &ocsffindinginfo.DataSource_FileFindingLocationData{
+				StartLine:   83,
+				EndLine:     83,
+				StartColumn: 7,
+				EndColumn:   7,
+			}}
+		marshalledDataSource, err = protojson.Marshal(datasource)
+		marshalledDataSources = append(marshalledDataSources, string(marshalledDataSource))
+		require.NoError(t, err)
+
+		datasource.LocationData = &ocsffindinginfo.DataSource_FileFindingLocationData_{
+			FileFindingLocationData: &ocsffindinginfo.DataSource_FileFindingLocationData{
+				StartLine: 83,
+			}}
+		marshalledDataSource, err = protojson.Marshal(datasource)
+		marshalledDataSources = append(marshalledDataSources, string(marshalledDataSource))
+		require.NoError(t, err)
+		marshalledDataSources = append(marshalledDataSources, string(marshalledDataSources[0]))
+
+		// reset for the test
+		datasource.LocationData = nil
 		clock := clockwork.NewFakeClockAt(staticNow)
 		now := staticNow
 		expectedIssues := []*ocsf.VulnerabilityFinding{
@@ -258,11 +305,9 @@ func Test_ParseOut(t *testing.T) {
 				ConfidenceId: ptr.Ptr(ocsf.VulnerabilityFinding_CONFIDENCE_ID_UNKNOWN),
 				Count:        ptr.Ptr(int32(1)),
 				FindingInfo: &ocsf.FindingInfo{
-					CreatedTime:   ptr.Ptr(now.Unix()),
-					CreatedTimeDt: timestamppb.New(now),
-					DataSources: []string{
-						"{\"targetType\":\"TARGET_TYPE_REPOSITORY\",\"uri\":{\"uriSchema\":\"URI_SCHEMA_FILE\",\"path\":\"file://main.go\"},\"fileFindingLocationData\":{\"startLine\":83,\"startColumn\":7}}",
-					},
+					CreatedTime:     ptr.Ptr(now.Unix()),
+					CreatedTimeDt:   timestamppb.New(now),
+					DataSources:     []string{string(marshalledDataSources[0])},
 					Desc:            ptr.Ptr("[test for missing endLine, common in some tools]"),
 					FirstSeenTime:   ptr.Ptr(now.Unix()),
 					FirstSeenTimeDt: timestamppb.New(now),
@@ -324,11 +369,9 @@ func Test_ParseOut(t *testing.T) {
 				ConfidenceId: ptr.Ptr(ocsf.VulnerabilityFinding_CONFIDENCE_ID_UNKNOWN),
 				Count:        ptr.Ptr(int32(1)),
 				FindingInfo: &ocsf.FindingInfo{
-					CreatedTime:   ptr.Ptr(now.Unix()),
-					CreatedTimeDt: timestamppb.New(now),
-					DataSources: []string{
-						"{\"targetType\":\"TARGET_TYPE_REPOSITORY\",\"uri\":{\"uriSchema\":\"URI_SCHEMA_FILE\",\"path\":\"file://main.go\"},\"fileFindingLocationData\":{\"startLine\":83,\"endLine\":83,\"startColumn\":7,\"endColumn\":7}}",
-					},
+					CreatedTime:     ptr.Ptr(now.Unix()),
+					CreatedTimeDt:   timestamppb.New(now),
+					DataSources:     []string{string(marshalledDataSources[1])},
 					Desc:            ptr.Ptr("Use of weak random number generator (math/rand instead of crypto/rand)"),
 					FirstSeenTime:   ptr.Ptr(now.Unix()),
 					FirstSeenTimeDt: timestamppb.New(now),
@@ -392,11 +435,9 @@ func Test_ParseOut(t *testing.T) {
 				ConfidenceId: ptr.Ptr(ocsf.VulnerabilityFinding_CONFIDENCE_ID_UNKNOWN),
 				Count:        ptr.Ptr(int32(1)),
 				FindingInfo: &ocsf.FindingInfo{
-					CreatedTime:   ptr.Ptr(now.Unix()),
-					CreatedTimeDt: timestamppb.New(now),
-					DataSources: []string{
-						"{\"targetType\":\"TARGET_TYPE_REPOSITORY\",\"uri\":{\"uriSchema\":\"URI_SCHEMA_FILE\",\"path\":\"file://main.go\"},\"fileFindingLocationData\":{\"startLine\":83}}",
-					},
+					CreatedTime:     ptr.Ptr(now.Unix()),
+					CreatedTimeDt:   timestamppb.New(now),
+					DataSources:     []string{string(marshalledDataSources[2])},
 					Desc:            ptr.Ptr("Use of weak random number generator (math/rand instead of crypto/rand) - nil endline"),
 					FirstSeenTime:   ptr.Ptr(now.Unix()),
 					FirstSeenTimeDt: timestamppb.New(now),
@@ -452,13 +493,9 @@ func Test_ParseOut(t *testing.T) {
 				},
 			},
 		}
-		transformer, err := sariftransformer.NewTransformer(&sarifOutput,
-			"",
-			sariftransformer.TargetTypeRepository,
-			clock,
-			MockUUIDProvider{FixedUUID: fixedUUID})
+		transformer, err := sariftransformer.NewTransformer(&sarifOutput, "", clock, MockUUIDProvider{FixedUUID: fixedUUID}, true)
 		require.NoError(t, err)
-		actualIssues, err := transformer.ToOCSF(context.Background())
+		actualIssues, err := transformer.ToOCSF(context.Background(), datasource)
 
 		require.NoError(t, err)
 		require.Equal(t, len(actualIssues), len(expectedIssues))
@@ -470,7 +507,7 @@ func Test_ParseOut(t *testing.T) {
 			for j, d := range e.GetFindingInfo().DataSources {
 				protojson.Unmarshal([]byte(d), &expectedDataSource)
 				protojson.Unmarshal([]byte(actualIssues[i].FindingInfo.DataSources[j]), &actualDatasource)
-				require.EqualExportedValues(t, &expectedDataSource, &actualDatasource)
+				require.EqualExportedValuesf(t, &expectedDataSource, &actualDatasource, "datasource for finding index %d is not equal", i)
 			}
 			expectedIssues[i].FindingInfo.DataSources = nil
 			actualIssues[i].FindingInfo.DataSources = nil
@@ -483,6 +520,29 @@ func Test_ParseOut(t *testing.T) {
 		var sarifOutput sarif.SchemaJson
 		require.NoError(t, json.Unmarshal(exampleOutput, &sarifOutput))
 
+		marshalledDataSources := []string{}
+
+		dataSource := &ocsffindinginfo.DataSource{
+			TargetType: ocsffindinginfo.DataSource_TARGET_TYPE_REPOSITORY,
+			SourceCodeMetadata: &ocsffindinginfo.DataSource_SourceCodeMetadata{
+				RepositoryUrl: "github.com/foo/bar",
+				Reference:     "main",
+			},
+		}
+
+		dataSource.LocationData = &ocsffindinginfo.DataSource_FileFindingLocationData_{
+			FileFindingLocationData: &ocsffindinginfo.DataSource_FileFindingLocationData{
+				StartLine: 1,
+			},
+		}
+		marshalledDataSource, err := protojson.Marshal(dataSource)
+		require.NoError(t, err)
+		marshalledDataSources = append(marshalledDataSources, string(marshalledDataSource))
+		marshalledDataSources = append(marshalledDataSources, string(marshalledDataSource))
+		marshalledDataSources = append(marshalledDataSources, string(marshalledDataSource))
+
+		// unset for the test
+		dataSource.LocationData = nil
 		clock := clockwork.NewFakeClockAt(staticNow)
 		now := staticNow
 		expectedIssues := []*ocsf.VulnerabilityFinding{
@@ -499,8 +559,8 @@ func Test_ParseOut(t *testing.T) {
 				FindingInfo: &ocsf.FindingInfo{
 					CreatedTime:     ptr.Ptr(now.Unix()),
 					CreatedTimeDt:   timestamppb.New(now),
-					DataSources:     []string{"{\"fileFindingLocationData\":{\"startLine\":1}}"},
-					Desc:            ptr.Ptr("(CVE-2024-47764) cookie@0.3.1"),
+					DataSources:     []string{string(marshalledDataSources[0])},
+					Desc:            ptr.Ptr("This file introduces a vulnerable cookie package with a medium severity vulnerability."),
 					FirstSeenTime:   ptr.Ptr(now.Unix()),
 					FirstSeenTimeDt: timestamppb.New(now),
 					LastSeenTime:    ptr.Ptr(now.Unix()),
@@ -509,7 +569,7 @@ func Test_ParseOut(t *testing.T) {
 					ModifiedTimeDt:  timestamppb.New(now),
 					ProductUid:      ptr.Ptr("Snyk Open Source"),
 					Uid:             fixedUUID,
-					Title:           "This file introduces a vulnerable cookie package with a medium severity vulnerability.",
+					Title:           "Medium severity - Cross-site Scripting (XSS) vulnerability in cookie",
 				},
 				Message: ptr.Ptr("This file introduces a vulnerable cookie package with a medium severity vulnerability."),
 				Metadata: &ocsf.Metadata{
@@ -546,7 +606,7 @@ func Test_ParseOut(t *testing.T) {
 							Desc: ptr.Ptr("(CVE-2024-47764) cookie@0.3.1"),
 							Uid:  "CVE-2024-47764",
 						},
-						Desc:            ptr.Ptr("(CVE-2024-47764) cookie@0.3.1"),
+						Desc:            ptr.Ptr("This file introduces a vulnerable cookie package with a medium severity vulnerability."),
 						FirstSeenTime:   ptr.Ptr(now.Unix()),
 						FirstSeenTimeDt: timestamppb.New(now),
 						FixAvailable:    ptr.Ptr(true),
@@ -555,7 +615,7 @@ func Test_ParseOut(t *testing.T) {
 						LastSeenTimeDt:  timestamppb.New(now),
 
 						Severity:   ptr.Ptr("SEVERITY_ID_MEDIUM"),
-						Title:      ptr.Ptr("This file introduces a vulnerable cookie package with a medium severity vulnerability."),
+						Title:      ptr.Ptr("Medium severity - Cross-site Scripting (XSS) vulnerability in cookie"),
 						VendorName: ptr.Ptr("Snyk Open Source"),
 					},
 				},
@@ -573,8 +633,8 @@ func Test_ParseOut(t *testing.T) {
 				FindingInfo: &ocsf.FindingInfo{
 					CreatedTime:     ptr.Ptr(now.Unix()),
 					CreatedTimeDt:   timestamppb.New(now),
-					DataSources:     []string{"{\"fileFindingLocationData\":{\"startLine\":1}}"},
-					Desc:            ptr.Ptr("(CVE-2020-36048) engine.io@1.8.5"),
+					DataSources:     []string{string(marshalledDataSources[1])},
+					Desc:            ptr.Ptr("This file introduces a vulnerable engine.io package with a high severity vulnerability."),
 					FirstSeenTime:   ptr.Ptr(now.Unix()),
 					FirstSeenTimeDt: timestamppb.New(now),
 					LastSeenTime:    ptr.Ptr(now.Unix()),
@@ -583,7 +643,7 @@ func Test_ParseOut(t *testing.T) {
 					ModifiedTimeDt:  timestamppb.New(now),
 					ProductUid:      ptr.Ptr("Snyk Open Source"),
 					Uid:             fixedUUID,
-					Title:           "This file introduces a vulnerable engine.io package with a high severity vulnerability.",
+					Title:           "High severity - Denial of Service (DoS) vulnerability in engine.io",
 				},
 				Message: ptr.Ptr("This file introduces a vulnerable engine.io package with a high severity vulnerability."),
 				Metadata: &ocsf.Metadata{
@@ -623,7 +683,7 @@ func Test_ParseOut(t *testing.T) {
 						Cwe: &ocsf.Cwe{
 							Uid: "400",
 						},
-						Desc:            ptr.Ptr("(CVE-2020-36048) engine.io@1.8.5"),
+						Desc:            ptr.Ptr("This file introduces a vulnerable engine.io package with a high severity vulnerability."),
 						FirstSeenTime:   ptr.Ptr(now.Unix()),
 						FirstSeenTimeDt: timestamppb.New(now),
 						FixAvailable:    ptr.Ptr(true),
@@ -632,7 +692,7 @@ func Test_ParseOut(t *testing.T) {
 						LastSeenTimeDt:  timestamppb.New(now),
 
 						Severity:   ptr.Ptr("SEVERITY_ID_HIGH"),
-						Title:      ptr.Ptr("This file introduces a vulnerable engine.io package with a high severity vulnerability."),
+						Title:      ptr.Ptr("High severity - Denial of Service (DoS) vulnerability in engine.io"),
 						VendorName: ptr.Ptr("Snyk Open Source"),
 					},
 				},
@@ -650,8 +710,8 @@ func Test_ParseOut(t *testing.T) {
 				FindingInfo: &ocsf.FindingInfo{
 					CreatedTime:     ptr.Ptr(now.Unix()),
 					CreatedTimeDt:   timestamppb.New(now),
-					DataSources:     []string{"{\"fileFindingLocationData\":{\"startLine\":1}}"},
-					Desc:            ptr.Ptr("(CVE-2022-41940) engine.io@1.8.5"),
+					DataSources:     []string{string(marshalledDataSources[2])},
+					Desc:            ptr.Ptr("This file introduces a vulnerable engine.io package with a high severity vulnerability."),
 					FirstSeenTime:   ptr.Ptr(now.Unix()),
 					FirstSeenTimeDt: timestamppb.New(now),
 					LastSeenTime:    ptr.Ptr(now.Unix()),
@@ -660,7 +720,7 @@ func Test_ParseOut(t *testing.T) {
 					ModifiedTimeDt:  timestamppb.New(now),
 					ProductUid:      ptr.Ptr("Snyk Open Source"),
 					Uid:             fixedUUID,
-					Title:           "This file introduces a vulnerable engine.io package with a high severity vulnerability.",
+					Title:           "High severity - Denial of Service (DoS) vulnerability in engine.io",
 				},
 				Message: ptr.Ptr("This file introduces a vulnerable engine.io package with a high severity vulnerability."),
 				Metadata: &ocsf.Metadata{
@@ -700,7 +760,7 @@ func Test_ParseOut(t *testing.T) {
 						Cwe: &ocsf.Cwe{
 							Uid: "400",
 						},
-						Desc:            ptr.Ptr("(CVE-2022-41940) engine.io@1.8.5"),
+						Desc:            ptr.Ptr("This file introduces a vulnerable engine.io package with a high severity vulnerability."),
 						FirstSeenTime:   ptr.Ptr(now.Unix()),
 						FirstSeenTimeDt: timestamppb.New(now),
 						FixAvailable:    ptr.Ptr(true),
@@ -709,15 +769,15 @@ func Test_ParseOut(t *testing.T) {
 						LastSeenTimeDt:  timestamppb.New(now),
 
 						Severity:   ptr.Ptr("SEVERITY_ID_HIGH"),
-						Title:      ptr.Ptr("This file introduces a vulnerable engine.io package with a high severity vulnerability."),
+						Title:      ptr.Ptr("High severity - Denial of Service (DoS) vulnerability in engine.io"),
 						VendorName: ptr.Ptr("Snyk Open Source"),
 					},
 				},
 			},
 		}
-		transformer, err := sariftransformer.NewTransformer(&sarifOutput, "npm", sariftransformer.TargetTypeDependency, clock, MockUUIDProvider{FixedUUID: fixedUUID})
+		transformer, err := sariftransformer.NewTransformer(&sarifOutput, "npm", clock, MockUUIDProvider{FixedUUID: fixedUUID}, true)
 		require.NoError(t, err)
-		actualIssues, err := transformer.ToOCSF(context.Background())
+		actualIssues, err := transformer.ToOCSF(context.Background(), dataSource)
 
 		require.NoError(t, err)
 		require.Equal(t, len(actualIssues), len(expectedIssues))
@@ -729,7 +789,7 @@ func Test_ParseOut(t *testing.T) {
 			for j, d := range e.GetFindingInfo().DataSources {
 				protojson.Unmarshal([]byte(d), &expectedDataSource)
 				protojson.Unmarshal([]byte(actualIssues[i].FindingInfo.DataSources[j]), &actualDatasource)
-				require.EqualExportedValues(t, &expectedDataSource, &actualDatasource)
+				require.EqualExportedValuesf(t, &expectedDataSource, &actualDatasource, "unequal datasources for finding %d", i)
 			}
 			expectedIssues[i].FindingInfo.DataSources = nil
 			actualIssues[i].FindingInfo.DataSources = nil
@@ -742,6 +802,64 @@ func Test_ParseOut(t *testing.T) {
 		require.NoError(t, err)
 		var sarifOutput sarif.SchemaJson
 		require.NoError(t, json.Unmarshal(exampleOutput, &sarifOutput))
+
+		marshalledDataSources := []string{}
+		dataSource := &ocsffindinginfo.DataSource{
+			TargetType: ocsffindinginfo.DataSource_TARGET_TYPE_REPOSITORY,
+			Uri: &ocsffindinginfo.DataSource_URI{
+				UriSchema: ocsffindinginfo.DataSource_URI_SCHEMA_FILE,
+				Path:      "file://main.go",
+			},
+			SourceCodeMetadata: &ocsffindinginfo.DataSource_SourceCodeMetadata{
+				RepositoryUrl: "github.com/foo/bar",
+				Reference:     "main",
+			},
+		}
+
+		dataSource.LocationData = &ocsffindinginfo.DataSource_FileFindingLocationData_{
+			FileFindingLocationData: &ocsffindinginfo.DataSource_FileFindingLocationData{
+				StartLine:   53,
+				StartColumn: 103,
+				EndColumn:   117,
+			},
+		}
+		dataSource.Uri = &ocsffindinginfo.DataSource_URI{
+			UriSchema: ocsffindinginfo.DataSource_URI_SCHEMA_FILE,
+			Path:      "file://components/consumers/defectdojo/main.go",
+		}
+		marshalledDataSource, err := protojson.Marshal(dataSource)
+		require.NoError(t, err)
+		marshalledDataSources = append(marshalledDataSources, string(marshalledDataSource))
+
+		dataSource.LocationData = &ocsffindinginfo.DataSource_FileFindingLocationData_{
+			FileFindingLocationData: &ocsffindinginfo.DataSource_FileFindingLocationData{
+				StartLine:   106,
+				StartColumn: 103,
+				EndColumn:   117,
+			},
+		}
+		marshalledDataSource, err = protojson.Marshal(dataSource)
+		require.NoError(t, err)
+		marshalledDataSources = append(marshalledDataSources, string(marshalledDataSource))
+
+		dataSource.LocationData = &ocsffindinginfo.DataSource_FileFindingLocationData_{
+			FileFindingLocationData: &ocsffindinginfo.DataSource_FileFindingLocationData{
+				StartLine:   209,
+				StartColumn: 24,
+				EndColumn:   34,
+			},
+		}
+		dataSource.Uri = &ocsffindinginfo.DataSource_URI{
+			UriSchema: ocsffindinginfo.DataSource_URI_SCHEMA_FILE,
+			Path:      "file://components/producers/github-codeql/main.go",
+		}
+		marshalledDataSource, err = protojson.Marshal(dataSource)
+		require.NoError(t, err)
+		marshalledDataSources = append(marshalledDataSources, string(marshalledDataSource))
+
+		// unset for the test
+		dataSource.LocationData = nil
+		dataSource.Uri = nil
 
 		clock := clockwork.NewFakeClockAt(staticNow)
 		now := staticNow
@@ -757,12 +875,10 @@ func Test_ParseOut(t *testing.T) {
 				ConfidenceId: ptr.Ptr(ocsf.VulnerabilityFinding_CONFIDENCE_ID_HIGH),
 				Count:        ptr.Ptr(int32(1)),
 				FindingInfo: &ocsf.FindingInfo{
-					CreatedTime:   ptr.Ptr(now.Unix()),
-					CreatedTimeDt: timestamppb.New(now),
-					DataSources: []string{
-						"{\"targetType\":\"TARGET_TYPE_REPOSITORY\", \"uri\":{\"uriSchema\":\"URI_SCHEMA_FILE\", \"path\":\"file://components/consumers/defectdojo/main.go\"}, \"fileFindingLocationData\":{\"startLine\":53, \"startColumn\":103, \"endColumn\":117}}",
-					},
-					Desc:            ptr.Ptr("Converting the result of `strconv.Atoi`, `strconv.ParseInt`, and `strconv.ParseUint` to integer types of smaller bit size can produce unexpected values."),
+					CreatedTime:     ptr.Ptr(now.Unix()),
+					CreatedTimeDt:   timestamppb.New(now),
+					DataSources:     []string{string(marshalledDataSources[0])},
+					Desc:            ptr.Ptr("Incorrect conversion of an integer with architecture-dependent bit size from [strconv.Atoi](1) to a lower bit size type int32 without an upper bound check."),
 					FirstSeenTime:   ptr.Ptr(now.Unix()),
 					FirstSeenTimeDt: timestamppb.New(now),
 					LastSeenTime:    ptr.Ptr(now.Unix()),
@@ -771,7 +887,7 @@ func Test_ParseOut(t *testing.T) {
 					ModifiedTimeDt:  timestamppb.New(now),
 					ProductUid:      ptr.Ptr("CodeQL"),
 					Uid:             fixedUUID,
-					Title:           "go/incorrect-integer-conversion",
+					Title:           "Incorrect conversion between integer types",
 				},
 				Message: ptr.Ptr("Incorrect conversion of an integer with architecture-dependent bit size from [strconv.Atoi](1) to a lower bit size type int32 without an upper bound check."),
 				Metadata: &ocsf.Metadata{
@@ -803,7 +919,7 @@ func Test_ParseOut(t *testing.T) {
 						Cwe: &ocsf.Cwe{
 							Uid: "190",
 						},
-						Desc:            ptr.Ptr("Converting the result of `strconv.Atoi`, `strconv.ParseInt`, and `strconv.ParseUint` to integer types of smaller bit size can produce unexpected values."),
+						Desc:            ptr.Ptr("Incorrect conversion of an integer with architecture-dependent bit size from [strconv.Atoi](1) to a lower bit size type int32 without an upper bound check."),
 						FirstSeenTime:   ptr.Ptr(now.Unix()),
 						FirstSeenTimeDt: timestamppb.New(now),
 						FixAvailable:    ptr.Ptr(false),
@@ -811,7 +927,7 @@ func Test_ParseOut(t *testing.T) {
 						LastSeenTime:    ptr.Ptr(now.Unix()),
 						LastSeenTimeDt:  timestamppb.New(now),
 						Severity:        ptr.Ptr("SEVERITY_ID_MEDIUM"),
-						Title:           ptr.Ptr("go/incorrect-integer-conversion"),
+						Title:           ptr.Ptr("Incorrect conversion between integer types"),
 						VendorName:      ptr.Ptr("CodeQL"),
 					},
 				},
@@ -827,12 +943,10 @@ func Test_ParseOut(t *testing.T) {
 				ConfidenceId: ptr.Ptr(ocsf.VulnerabilityFinding_CONFIDENCE_ID_HIGH),
 				Count:        ptr.Ptr(int32(1)),
 				FindingInfo: &ocsf.FindingInfo{
-					CreatedTime:   ptr.Ptr(now.Unix()),
-					CreatedTimeDt: timestamppb.New(now),
-					DataSources: []string{
-						"{\"targetType\":\"TARGET_TYPE_REPOSITORY\", \"uri\":{\"uriSchema\":\"URI_SCHEMA_FILE\", \"path\":\"file://components/consumers/defectdojo/main.go\"}, \"fileFindingLocationData\":{\"startLine\":106, \"startColumn\":103, \"endColumn\":117}}",
-					},
-					Desc:            ptr.Ptr("Converting the result of `strconv.Atoi`, `strconv.ParseInt`, and `strconv.ParseUint` to integer types of smaller bit size can produce unexpected values."),
+					CreatedTime:     ptr.Ptr(now.Unix()),
+					CreatedTimeDt:   timestamppb.New(now),
+					DataSources:     []string{string(marshalledDataSources[1])},
+					Desc:            ptr.Ptr("Incorrect conversion of an integer with architecture-dependent bit size from [strconv.Atoi](1) to a lower bit size type int32 without an upper bound check."),
 					FirstSeenTime:   ptr.Ptr(now.Unix()),
 					FirstSeenTimeDt: timestamppb.New(now),
 					LastSeenTime:    ptr.Ptr(now.Unix()),
@@ -841,7 +955,7 @@ func Test_ParseOut(t *testing.T) {
 					ModifiedTimeDt:  timestamppb.New(now),
 					ProductUid:      ptr.Ptr("CodeQL"),
 					Uid:             fixedUUID,
-					Title:           "go/incorrect-integer-conversion",
+					Title:           "Incorrect conversion between integer types",
 				},
 				Message: ptr.Ptr("Incorrect conversion of an integer with architecture-dependent bit size from [strconv.Atoi](1) to a lower bit size type int32 without an upper bound check."),
 				Metadata: &ocsf.Metadata{
@@ -873,7 +987,7 @@ func Test_ParseOut(t *testing.T) {
 						Cwe: &ocsf.Cwe{
 							Uid: "190",
 						},
-						Desc:            ptr.Ptr("Converting the result of `strconv.Atoi`, `strconv.ParseInt`, and `strconv.ParseUint` to integer types of smaller bit size can produce unexpected values."),
+						Desc:            ptr.Ptr("Incorrect conversion of an integer with architecture-dependent bit size from [strconv.Atoi](1) to a lower bit size type int32 without an upper bound check."),
 						FirstSeenTime:   ptr.Ptr(now.Unix()),
 						FirstSeenTimeDt: timestamppb.New(now),
 						FixAvailable:    ptr.Ptr(false),
@@ -881,7 +995,7 @@ func Test_ParseOut(t *testing.T) {
 						LastSeenTime:    ptr.Ptr(now.Unix()),
 						LastSeenTimeDt:  timestamppb.New(now),
 						Severity:        ptr.Ptr("SEVERITY_ID_MEDIUM"),
-						Title:           ptr.Ptr("go/incorrect-integer-conversion"),
+						Title:           ptr.Ptr("Incorrect conversion between integer types"),
 						VendorName:      ptr.Ptr("CodeQL"),
 					},
 				},
@@ -897,12 +1011,10 @@ func Test_ParseOut(t *testing.T) {
 				ConfidenceId: ptr.Ptr(ocsf.VulnerabilityFinding_CONFIDENCE_ID_HIGH),
 				Count:        ptr.Ptr(int32(1)),
 				FindingInfo: &ocsf.FindingInfo{
-					CreatedTime:   ptr.Ptr(now.Unix()),
-					CreatedTimeDt: timestamppb.New(now),
-					DataSources: []string{
-						"{\"targetType\":\"TARGET_TYPE_REPOSITORY\", \"uri\":{\"uriSchema\":\"URI_SCHEMA_FILE\", \"path\":\"file://components/producers/github-codeql/main.go\"}, \"fileFindingLocationData\":{\"startLine\":209, \"startColumn\":24, \"endColumn\":34}}",
-					},
-					Desc:            ptr.Ptr("Converting the result of `strconv.Atoi`, `strconv.ParseInt`, and `strconv.ParseUint` to integer types of smaller bit size can produce unexpected values."),
+					CreatedTime:     ptr.Ptr(now.Unix()),
+					CreatedTimeDt:   timestamppb.New(now),
+					DataSources:     []string{string(marshalledDataSources[2])},
+					Desc:            ptr.Ptr("Incorrect conversion of an integer with architecture-dependent bit size from [strconv.Atoi](1) to a lower bit size type int32 without an upper bound check."),
 					FirstSeenTime:   ptr.Ptr(now.Unix()),
 					FirstSeenTimeDt: timestamppb.New(now),
 					LastSeenTime:    ptr.Ptr(now.Unix()),
@@ -911,7 +1023,7 @@ func Test_ParseOut(t *testing.T) {
 					ModifiedTimeDt:  timestamppb.New(now),
 					ProductUid:      ptr.Ptr("CodeQL"),
 					Uid:             fixedUUID,
-					Title:           "go/incorrect-integer-conversion",
+					Title:           "Incorrect conversion between integer types",
 				},
 				Message: ptr.Ptr("Incorrect conversion of an integer with architecture-dependent bit size from [strconv.Atoi](1) to a lower bit size type int32 without an upper bound check."),
 				Metadata: &ocsf.Metadata{
@@ -943,7 +1055,7 @@ func Test_ParseOut(t *testing.T) {
 						Cwe: &ocsf.Cwe{
 							Uid: "190",
 						},
-						Desc:            ptr.Ptr("Converting the result of `strconv.Atoi`, `strconv.ParseInt`, and `strconv.ParseUint` to integer types of smaller bit size can produce unexpected values."),
+						Desc:            ptr.Ptr("Incorrect conversion of an integer with architecture-dependent bit size from [strconv.Atoi](1) to a lower bit size type int32 without an upper bound check."),
 						FirstSeenTime:   ptr.Ptr(now.Unix()),
 						FirstSeenTimeDt: timestamppb.New(now),
 						FixAvailable:    ptr.Ptr(false),
@@ -951,15 +1063,15 @@ func Test_ParseOut(t *testing.T) {
 						LastSeenTime:    ptr.Ptr(now.Unix()),
 						LastSeenTimeDt:  timestamppb.New(now),
 						Severity:        ptr.Ptr("SEVERITY_ID_MEDIUM"),
-						Title:           ptr.Ptr("go/incorrect-integer-conversion"),
+						Title:           ptr.Ptr("Incorrect conversion between integer types"),
 						VendorName:      ptr.Ptr("CodeQL"),
 					},
 				},
 			},
 		}
-		transformer, err := sariftransformer.NewTransformer(&sarifOutput, "", sariftransformer.TargetTypeRepository, clock, MockUUIDProvider{FixedUUID: fixedUUID})
+		transformer, err := sariftransformer.NewTransformer(&sarifOutput, "", clock, MockUUIDProvider{FixedUUID: fixedUUID}, true)
 		require.NoError(t, err)
-		actualIssues, err := transformer.ToOCSF(context.Background())
+		actualIssues, err := transformer.ToOCSF(context.Background(), dataSource)
 		require.NoError(t, err)
 		require.Equal(t, len(actualIssues), len(expectedIssues))
 		// handle datasource differently see https://github.com/golang/protobuf/issues/1121
@@ -970,7 +1082,7 @@ func Test_ParseOut(t *testing.T) {
 			for j, d := range e.GetFindingInfo().DataSources {
 				protojson.Unmarshal([]byte(d), &expectedDataSource)
 				protojson.Unmarshal([]byte(actualIssues[i].FindingInfo.DataSources[j]), &actualDatasource)
-				require.EqualExportedValues(t, &expectedDataSource, &actualDatasource)
+				require.EqualExportedValuesf(t, &expectedDataSource, &actualDatasource, "unequal datasources for findign %d", i)
 			}
 			expectedIssues[i].FindingInfo.DataSources = nil
 			actualIssues[i].FindingInfo.DataSources = nil
@@ -983,6 +1095,67 @@ func Test_ParseOut(t *testing.T) {
 		require.NoError(t, err)
 		var sarifOutput sarif.SchemaJson
 		require.NoError(t, json.Unmarshal(exampleOutput, &sarifOutput))
+		marshalledDataSources := []string{}
+
+		dataSource := &ocsffindinginfo.DataSource{
+			TargetType: ocsffindinginfo.DataSource_TARGET_TYPE_REPOSITORY,
+			SourceCodeMetadata: &ocsffindinginfo.DataSource_SourceCodeMetadata{
+				RepositoryUrl: "github.com/foo/bar",
+				Reference:     "main",
+			},
+		}
+
+		dataSource.LocationData = &ocsffindinginfo.DataSource_FileFindingLocationData_{
+			FileFindingLocationData: &ocsffindinginfo.DataSource_FileFindingLocationData{
+				StartLine:   15,
+				EndLine:     15,
+				StartColumn: 26,
+				EndColumn:   46,
+			},
+		}
+		dataSource.Uri = &ocsffindinginfo.DataSource_URI{
+			UriSchema: ocsffindinginfo.DataSource_URI_SCHEMA_FILE,
+			Path:      "file://terragoat/terraform/aws/ec2.tf",
+		}
+		marshalledDataSource, err := protojson.Marshal(dataSource)
+		require.NoError(t, err)
+		marshalledDataSources = append(marshalledDataSources, string(marshalledDataSource))
+
+		dataSource.LocationData = &ocsffindinginfo.DataSource_FileFindingLocationData_{
+			FileFindingLocationData: &ocsffindinginfo.DataSource_FileFindingLocationData{
+				StartLine:   27,
+				EndLine:     31,
+				StartColumn: 20,
+				EndColumn:   3,
+			},
+		}
+		dataSource.Uri = &ocsffindinginfo.DataSource_URI{
+			UriSchema: ocsffindinginfo.DataSource_URI_SCHEMA_FILE,
+			Path:      "file://govwa/user/session/session.go",
+		}
+		marshalledDataSource, err = protojson.Marshal(dataSource)
+		require.NoError(t, err)
+		marshalledDataSources = append(marshalledDataSources, string(marshalledDataSource))
+
+		dataSource.LocationData = &ocsffindinginfo.DataSource_FileFindingLocationData_{
+			FileFindingLocationData: &ocsffindinginfo.DataSource_FileFindingLocationData{
+				StartLine:   9,
+				EndLine:     9,
+				StartColumn: 9,
+				EndColumn:   50,
+			},
+		}
+		dataSource.Uri = &ocsffindinginfo.DataSource_URI{
+			UriSchema: ocsffindinginfo.DataSource_URI_SCHEMA_FILE,
+			Path:      "file://go-dvwa/vulnerable/system.go",
+		}
+		marshalledDataSource, err = protojson.Marshal(dataSource)
+		require.NoError(t, err)
+		marshalledDataSources = append(marshalledDataSources, string(marshalledDataSource))
+
+		// unset for the test
+		dataSource.LocationData = nil
+		dataSource.Uri = nil
 
 		clock := clockwork.NewFakeClockAt(staticNow)
 		now := staticNow
@@ -998,12 +1171,10 @@ func Test_ParseOut(t *testing.T) {
 				ConfidenceId: ptr.Ptr(ocsf.VulnerabilityFinding_CONFIDENCE_ID_UNKNOWN),
 				Count:        ptr.Ptr(int32(1)),
 				FindingInfo: &ocsf.FindingInfo{
-					CreatedTime:   ptr.Ptr(now.Unix()),
-					CreatedTimeDt: timestamppb.New(now),
-					DataSources: []string{
-						"{\"targetType\":\"TARGET_TYPE_REPOSITORY\", \"uri\":{\"uriSchema\":\"URI_SCHEMA_FILE\", \"path\":\"file://terragoat/terraform/aws/ec2.tf\"}, \"fileFindingLocationData\":{\"startLine\":15, \"endLine\":15, \"startColumn\":26, \"endColumn\":46}}",
-					},
-					Desc:            ptr.Ptr("AWS Access Key ID Value detected. This is a sensitive credential and should not be hardcoded here. Instead, read this value from an environment variable or keep it in a separate, private file."),
+					CreatedTime:     ptr.Ptr(now.Unix()),
+					CreatedTimeDt:   timestamppb.New(now),
+					DataSources:     []string{string(marshalledDataSources[0])},
+					Desc:            ptr.Ptr("Original Description: AWS Access Key ID Value detected. This is a sensitive credential and should not be hardcoded here. Instead, read this value from an environment variable or keep it in a separate, private file.\n Help: AWS Access Key ID Value detected. This is a sensitive credential and should not be hardcoded here. Instead, read this value from an environment variable or keep it in a separate, private file.\n💎 Enable cross-file analysis and Pro rules for free at sg.run/pro\n HelpUri: https://semgrep.dev/r/generic.secrets.security.detected-aws-access-key-id-value.detected-aws-access-key-id-value"),
 					FirstSeenTime:   ptr.Ptr(now.Unix()),
 					FirstSeenTimeDt: timestamppb.New(now),
 					LastSeenTime:    ptr.Ptr(now.Unix()),
@@ -1012,9 +1183,9 @@ func Test_ParseOut(t *testing.T) {
 					ModifiedTimeDt:  timestamppb.New(now),
 					ProductUid:      ptr.Ptr("Semgrep OSS"),
 					Uid:             fixedUUID,
-					Title:           "generic.secrets.security.detected-aws-access-key-id-value.detected-aws-access-key-id-value",
+					Title:           "Semgrep Finding: generic.secrets.security.detected-aws-access-key-id-value.detected-aws-access-key-id-value",
 				},
-				Message: ptr.Ptr("AWS Access Key ID Value detected. This is a sensitive credential and should not be hardcoded here. Instead, read this value from an environment variable or keep it in a separate, private file."),
+				Message: ptr.Ptr("Original Description: AWS Access Key ID Value detected. This is a sensitive credential and should not be hardcoded here. Instead, read this value from an environment variable or keep it in a separate, private file.\n Help: AWS Access Key ID Value detected. This is a sensitive credential and should not be hardcoded here. Instead, read this value from an environment variable or keep it in a separate, private file.\n💎 Enable cross-file analysis and Pro rules for free at sg.run/pro\n HelpUri: https://semgrep.dev/r/generic.secrets.security.detected-aws-access-key-id-value.detected-aws-access-key-id-value"),
 				Metadata: &ocsf.Metadata{
 					EventCode: ptr.Ptr("generic.secrets.security.detected-aws-access-key-id-value.detected-aws-access-key-id-value"),
 					Product: &ocsf.Product{
@@ -1046,7 +1217,7 @@ func Test_ParseOut(t *testing.T) {
 						Cwe: &ocsf.Cwe{
 							Uid: "798",
 						},
-						Desc:            ptr.Ptr("AWS Access Key ID Value detected. This is a sensitive credential and should not be hardcoded here. Instead, read this value from an environment variable or keep it in a separate, private file."),
+						Desc:            ptr.Ptr("Original Description: AWS Access Key ID Value detected. This is a sensitive credential and should not be hardcoded here. Instead, read this value from an environment variable or keep it in a separate, private file.\n Help: AWS Access Key ID Value detected. This is a sensitive credential and should not be hardcoded here. Instead, read this value from an environment variable or keep it in a separate, private file.\n💎 Enable cross-file analysis and Pro rules for free at sg.run/pro\n HelpUri: https://semgrep.dev/r/generic.secrets.security.detected-aws-access-key-id-value.detected-aws-access-key-id-value"),
 						FirstSeenTime:   ptr.Ptr(now.Unix()),
 						FirstSeenTimeDt: timestamppb.New(now),
 						FixAvailable:    ptr.Ptr(false),
@@ -1054,7 +1225,7 @@ func Test_ParseOut(t *testing.T) {
 						LastSeenTime:    ptr.Ptr(now.Unix()),
 						LastSeenTimeDt:  timestamppb.New(now),
 						Severity:        ptr.Ptr("SEVERITY_ID_MEDIUM"),
-						Title:           ptr.Ptr("generic.secrets.security.detected-aws-access-key-id-value.detected-aws-access-key-id-value"),
+						Title:           ptr.Ptr("Semgrep Finding: generic.secrets.security.detected-aws-access-key-id-value.detected-aws-access-key-id-value"),
 						VendorName:      ptr.Ptr("Semgrep OSS"),
 					},
 				},
@@ -1070,12 +1241,10 @@ func Test_ParseOut(t *testing.T) {
 				ConfidenceId: ptr.Ptr(ocsf.VulnerabilityFinding_CONFIDENCE_ID_UNKNOWN),
 				Count:        ptr.Ptr(int32(1)),
 				FindingInfo: &ocsf.FindingInfo{
-					CreatedTime:   ptr.Ptr(now.Unix()),
-					CreatedTimeDt: timestamppb.New(now),
-					DataSources: []string{
-						"{\"targetType\":\"TARGET_TYPE_REPOSITORY\", \"uri\":{\"uriSchema\":\"URI_SCHEMA_FILE\", \"path\":\"file://govwa/user/session/session.go\"}, \"fileFindingLocationData\":{\"startLine\":27, \"endLine\":31, \"startColumn\":20, \"endColumn\":3}}",
-					},
-					Desc:            ptr.Ptr("A session cookie was detected without setting the 'HttpOnly' flag. The 'HttpOnly' flag for cookies instructs the browser to forbid client-side scripts from reading the cookie which mitigates XSS attacks. Set the 'HttpOnly' flag by setting 'HttpOnly' to 'true' in the Options struct."),
+					CreatedTime:     ptr.Ptr(now.Unix()),
+					CreatedTimeDt:   timestamppb.New(now),
+					DataSources:     []string{string(marshalledDataSources[1])},
+					Desc:            ptr.Ptr("Original Description: A session cookie was detected without setting the 'HttpOnly' flag. The 'HttpOnly' flag for cookies instructs the browser to forbid client-side scripts from reading the cookie which mitigates XSS attacks. Set the 'HttpOnly' flag by setting 'HttpOnly' to 'true' in the Options struct.\n Help: A session cookie was detected without setting the 'HttpOnly' flag. The 'HttpOnly' flag for cookies instructs the browser to forbid client-side scripts from reading the cookie which mitigates XSS attacks. Set the 'HttpOnly' flag by setting 'HttpOnly' to 'true' in the Options struct.\n💎 Enable cross-file analysis and Pro rules for free at sg.run/pro\n HelpUri: https://semgrep.dev/r/go.gorilla.security.audit.session-cookie-missing-httponly.session-cookie-missing-httponly"),
 					FirstSeenTime:   ptr.Ptr(now.Unix()),
 					FirstSeenTimeDt: timestamppb.New(now),
 					LastSeenTime:    ptr.Ptr(now.Unix()),
@@ -1084,9 +1253,9 @@ func Test_ParseOut(t *testing.T) {
 					ModifiedTimeDt:  timestamppb.New(now),
 					ProductUid:      ptr.Ptr("Semgrep OSS"),
 					Uid:             fixedUUID,
-					Title:           "go.gorilla.security.audit.session-cookie-missing-httponly.session-cookie-missing-httponly",
+					Title:           "Semgrep Finding: go.gorilla.security.audit.session-cookie-missing-httponly.session-cookie-missing-httponly",
 				},
-				Message: ptr.Ptr("A session cookie was detected without setting the 'HttpOnly' flag. The 'HttpOnly' flag for cookies instructs the browser to forbid client-side scripts from reading the cookie which mitigates XSS attacks. Set the 'HttpOnly' flag by setting 'HttpOnly' to 'true' in the Options struct."),
+				Message: ptr.Ptr("Original Description: A session cookie was detected without setting the 'HttpOnly' flag. The 'HttpOnly' flag for cookies instructs the browser to forbid client-side scripts from reading the cookie which mitigates XSS attacks. Set the 'HttpOnly' flag by setting 'HttpOnly' to 'true' in the Options struct.\n Help: A session cookie was detected without setting the 'HttpOnly' flag. The 'HttpOnly' flag for cookies instructs the browser to forbid client-side scripts from reading the cookie which mitigates XSS attacks. Set the 'HttpOnly' flag by setting 'HttpOnly' to 'true' in the Options struct.\n💎 Enable cross-file analysis and Pro rules for free at sg.run/pro\n HelpUri: https://semgrep.dev/r/go.gorilla.security.audit.session-cookie-missing-httponly.session-cookie-missing-httponly"),
 				Metadata: &ocsf.Metadata{
 					EventCode: ptr.Ptr("go.gorilla.security.audit.session-cookie-missing-httponly.session-cookie-missing-httponly"),
 					Product: &ocsf.Product{
@@ -1118,7 +1287,7 @@ func Test_ParseOut(t *testing.T) {
 						Cwe: &ocsf.Cwe{
 							Uid: "1004",
 						},
-						Desc:            ptr.Ptr("A session cookie was detected without setting the 'HttpOnly' flag. The 'HttpOnly' flag for cookies instructs the browser to forbid client-side scripts from reading the cookie which mitigates XSS attacks. Set the 'HttpOnly' flag by setting 'HttpOnly' to 'true' in the Options struct."),
+						Desc:            ptr.Ptr("Original Description: A session cookie was detected without setting the 'HttpOnly' flag. The 'HttpOnly' flag for cookies instructs the browser to forbid client-side scripts from reading the cookie which mitigates XSS attacks. Set the 'HttpOnly' flag by setting 'HttpOnly' to 'true' in the Options struct.\n Help: A session cookie was detected without setting the 'HttpOnly' flag. The 'HttpOnly' flag for cookies instructs the browser to forbid client-side scripts from reading the cookie which mitigates XSS attacks. Set the 'HttpOnly' flag by setting 'HttpOnly' to 'true' in the Options struct.\n💎 Enable cross-file analysis and Pro rules for free at sg.run/pro\n HelpUri: https://semgrep.dev/r/go.gorilla.security.audit.session-cookie-missing-httponly.session-cookie-missing-httponly"),
 						FirstSeenTime:   ptr.Ptr(now.Unix()),
 						FirstSeenTimeDt: timestamppb.New(now),
 						FixAvailable:    ptr.Ptr(true),
@@ -1126,7 +1295,7 @@ func Test_ParseOut(t *testing.T) {
 						LastSeenTime:    ptr.Ptr(now.Unix()),
 						LastSeenTimeDt:  timestamppb.New(now),
 						Severity:        ptr.Ptr("SEVERITY_ID_MEDIUM"),
-						Title:           ptr.Ptr("go.gorilla.security.audit.session-cookie-missing-httponly.session-cookie-missing-httponly"),
+						Title:           ptr.Ptr("Semgrep Finding: go.gorilla.security.audit.session-cookie-missing-httponly.session-cookie-missing-httponly"),
 						VendorName:      ptr.Ptr("Semgrep OSS"),
 					},
 				},
@@ -1142,12 +1311,10 @@ func Test_ParseOut(t *testing.T) {
 				ConfidenceId: ptr.Ptr(ocsf.VulnerabilityFinding_CONFIDENCE_ID_UNKNOWN),
 				Count:        ptr.Ptr(int32(1)),
 				FindingInfo: &ocsf.FindingInfo{
-					CreatedTime:   ptr.Ptr(now.Unix()),
-					CreatedTimeDt: timestamppb.New(now),
-					DataSources: []string{
-						"{\"targetType\":\"TARGET_TYPE_REPOSITORY\", \"uri\":{\"uriSchema\":\"URI_SCHEMA_FILE\", \"path\":\"file://go-dvwa/vulnerable/system.go\"}, \"fileFindingLocationData\":{\"startLine\":9, \"endLine\":9, \"startColumn\":9, \"endColumn\":50}}",
-					},
-					Desc:            ptr.Ptr("Detected non-static command inside Command. Audit the input to 'exec.Command'. If unverified user data can reach this call site, this is a code injection vulnerability. A malicious actor can inject a malicious script to execute arbitrary code."),
+					CreatedTime:     ptr.Ptr(now.Unix()),
+					CreatedTimeDt:   timestamppb.New(now),
+					DataSources:     []string{string(marshalledDataSources[2])},
+					Desc:            ptr.Ptr("Original Description: Detected non-static command inside Command. Audit the input to 'exec.Command'. If unverified user data can reach this call site, this is a code injection vulnerability. A malicious actor can inject a malicious script to execute arbitrary code.\n Help: Detected non-static command inside Command. Audit the input to 'exec.Command'. If unverified user data can reach this call site, this is a code injection vulnerability. A malicious actor can inject a malicious script to execute arbitrary code.\n💎 Enable cross-file analysis and Pro rules for free at sg.run/pro\n HelpUri: https://semgrep.dev/r/go.lang.security.audit.dangerous-exec-command.dangerous-exec-command"),
 					FirstSeenTime:   ptr.Ptr(now.Unix()),
 					FirstSeenTimeDt: timestamppb.New(now),
 					LastSeenTime:    ptr.Ptr(now.Unix()),
@@ -1156,9 +1323,9 @@ func Test_ParseOut(t *testing.T) {
 					ModifiedTimeDt:  timestamppb.New(now),
 					ProductUid:      ptr.Ptr("Semgrep OSS"),
 					Uid:             fixedUUID,
-					Title:           "go.lang.security.audit.dangerous-exec-command.dangerous-exec-command",
+					Title:           "Semgrep Finding: go.lang.security.audit.dangerous-exec-command.dangerous-exec-command",
 				},
-				Message: ptr.Ptr("Detected non-static command inside Command. Audit the input to 'exec.Command'. If unverified user data can reach this call site, this is a code injection vulnerability. A malicious actor can inject a malicious script to execute arbitrary code."),
+				Message: ptr.Ptr("Original Description: Detected non-static command inside Command. Audit the input to 'exec.Command'. If unverified user data can reach this call site, this is a code injection vulnerability. A malicious actor can inject a malicious script to execute arbitrary code.\n Help: Detected non-static command inside Command. Audit the input to 'exec.Command'. If unverified user data can reach this call site, this is a code injection vulnerability. A malicious actor can inject a malicious script to execute arbitrary code.\n💎 Enable cross-file analysis and Pro rules for free at sg.run/pro\n HelpUri: https://semgrep.dev/r/go.lang.security.audit.dangerous-exec-command.dangerous-exec-command"),
 				Metadata: &ocsf.Metadata{
 					EventCode: ptr.Ptr("go.lang.security.audit.dangerous-exec-command.dangerous-exec-command"),
 					Product: &ocsf.Product{
@@ -1187,7 +1354,7 @@ func Test_ParseOut(t *testing.T) {
 								EndLine:   ptr.Ptr(int32(9)),
 							},
 						},
-						Desc:            ptr.Ptr("Detected non-static command inside Command. Audit the input to 'exec.Command'. If unverified user data can reach this call site, this is a code injection vulnerability. A malicious actor can inject a malicious script to execute arbitrary code."),
+						Desc:            ptr.Ptr("Original Description: Detected non-static command inside Command. Audit the input to 'exec.Command'. If unverified user data can reach this call site, this is a code injection vulnerability. A malicious actor can inject a malicious script to execute arbitrary code.\n Help: Detected non-static command inside Command. Audit the input to 'exec.Command'. If unverified user data can reach this call site, this is a code injection vulnerability. A malicious actor can inject a malicious script to execute arbitrary code.\n💎 Enable cross-file analysis and Pro rules for free at sg.run/pro\n HelpUri: https://semgrep.dev/r/go.lang.security.audit.dangerous-exec-command.dangerous-exec-command"),
 						FirstSeenTime:   ptr.Ptr(now.Unix()),
 						FirstSeenTimeDt: timestamppb.New(now),
 						FixAvailable:    ptr.Ptr(false),
@@ -1195,15 +1362,15 @@ func Test_ParseOut(t *testing.T) {
 						LastSeenTime:    ptr.Ptr(now.Unix()),
 						LastSeenTimeDt:  timestamppb.New(now),
 						Severity:        ptr.Ptr("SEVERITY_ID_MEDIUM"),
-						Title:           ptr.Ptr("go.lang.security.audit.dangerous-exec-command.dangerous-exec-command"),
+						Title:           ptr.Ptr("Semgrep Finding: go.lang.security.audit.dangerous-exec-command.dangerous-exec-command"),
 						VendorName:      ptr.Ptr("Semgrep OSS"),
 					},
 				},
 			},
 		}
-		transformer, err := sariftransformer.NewTransformer(&sarifOutput, "", sariftransformer.TargetTypeRepository, clock, MockUUIDProvider{FixedUUID: fixedUUID})
+		transformer, err := sariftransformer.NewTransformer(&sarifOutput, "", clock, MockUUIDProvider{FixedUUID: fixedUUID}, true)
 		require.NoError(t, err)
-		actualIssues, err := transformer.ToOCSF(context.Background())
+		actualIssues, err := transformer.ToOCSF(context.Background(), dataSource)
 		require.NoError(t, err)
 		require.Equal(t, len(actualIssues), len(expectedIssues))
 		// handle datasource differently see https://github.com/golang/protobuf/issues/1121
@@ -1214,7 +1381,7 @@ func Test_ParseOut(t *testing.T) {
 			for j, d := range e.GetFindingInfo().DataSources {
 				protojson.Unmarshal([]byte(d), &expectedDataSource)
 				protojson.Unmarshal([]byte(actualIssues[i].FindingInfo.DataSources[j]), &actualDatasource)
-				require.EqualExportedValues(t, &expectedDataSource, &actualDatasource)
+				require.EqualExportedValuesf(t, &expectedDataSource, &actualDatasource, "unequal datasource values for finding %d", i)
 			}
 			expectedIssues[i].FindingInfo.DataSources = nil
 			actualIssues[i].FindingInfo.DataSources = nil
@@ -1227,6 +1394,39 @@ func Test_ParseOut(t *testing.T) {
 		require.NoError(t, err)
 		var sarifOutput sarif.SchemaJson
 		require.NoError(t, json.Unmarshal(exampleOutput, &sarifOutput))
+
+		marshalledDataSources := []string{}
+		dataSource := &ocsffindinginfo.DataSource{
+			TargetType: ocsffindinginfo.DataSource_TARGET_TYPE_CONTAINER_IMAGE,
+			Uri: &ocsffindinginfo.DataSource_URI{
+				UriSchema: ocsffindinginfo.DataSource_URI_SCHEMA_FILE,
+				Path:      "file://main.go",
+			},
+			OciPackageMetadata: &ocsffindinginfo.DataSource_OCIPackageMetadata{
+				PackageUrl: "pkg:docker/ghcr.io/foo/image@v1.2.3",
+				Tag:        "v1.2.3",
+			},
+		}
+
+		dataSource.LocationData = &ocsffindinginfo.DataSource_FileFindingLocationData_{
+			FileFindingLocationData: &ocsffindinginfo.DataSource_FileFindingLocationData{
+				StartLine:   1,
+				EndLine:     1,
+				StartColumn: 1,
+				EndColumn:   1,
+			},
+		}
+		dataSource.Uri = &ocsffindinginfo.DataSource_URI{
+			UriSchema: ocsffindinginfo.DataSource_URI_SCHEMA_PURL,
+			Path:      "pkg:docker/workspace/source-code/image.tar",
+		}
+		marshalledDataSource, err := protojson.Marshal(dataSource)
+		require.NoError(t, err)
+		marshalledDataSources = append(marshalledDataSources, string(marshalledDataSource))
+		marshalledDataSources = append(marshalledDataSources, string(marshalledDataSource))
+		// unset for the test
+		dataSource.LocationData = nil
+		dataSource.Uri = nil
 
 		clock := clockwork.NewFakeClockAt(staticNow)
 		now := staticNow
@@ -1242,12 +1442,10 @@ func Test_ParseOut(t *testing.T) {
 				ConfidenceId: ptr.Ptr(ocsf.VulnerabilityFinding_CONFIDENCE_ID_UNKNOWN),
 				Count:        ptr.Ptr(int32(1)),
 				FindingInfo: &ocsf.FindingInfo{
-					CreatedTime:   ptr.Ptr(now.Unix()),
-					CreatedTimeDt: timestamppb.New(now),
-					DataSources: []string{
-						"{\"uri\":{\"uriSchema\":\"URI_SCHEMA_PURL\", \"path\":\"pkg:docker//workspace/source-code/image.tar\"}, \"fileFindingLocationData\":{\"startLine\":1, \"endLine\":1, \"startColumn\":1, \"endColumn\":1}}",
-					},
-					Desc:            ptr.Ptr("chroot in GNU coreutils, when used with --userspec, allows local users to escape to the parent session via a crafted TIOCSTI ioctl call, which pushes characters to the terminal's input buffer."),
+					CreatedTime:     ptr.Ptr(now.Unix()),
+					CreatedTimeDt:   timestamppb.New(now),
+					DataSources:     []string{string(marshalledDataSources[0])},
+					Desc:            ptr.Ptr("Original Description: chroot in GNU coreutils, when used with --userspec, allows local users to escape to the parent session via a crafted TIOCSTI ioctl call, which pushes characters to the terminal's input buffer.\n Help: Vulnerability CVE-2016-2781\nSeverity: LOW\nPackage: coreutils\nFixed Version: \nLink: [CVE-2016-2781](https://avd.aquasec.com/nvd/cve-2016-2781)\nchroot in GNU coreutils, when used with --userspec, allows local users to escape to the parent session via a crafted TIOCSTI ioctl call, which pushes characters to the terminal's input buffer.\n HelpUri: https://avd.aquasec.com/nvd/cve-2016-2781"),
 					FirstSeenTime:   ptr.Ptr(now.Unix()),
 					FirstSeenTimeDt: timestamppb.New(now),
 					LastSeenTime:    ptr.Ptr(now.Unix()),
@@ -1256,9 +1454,9 @@ func Test_ParseOut(t *testing.T) {
 					ModifiedTimeDt:  timestamppb.New(now),
 					ProductUid:      ptr.Ptr("Trivy"),
 					Uid:             "d258a2dc-b324-46aa-9cea-28ba8d44fcb8",
-					Title:           "OsPackageVulnerability",
+					Title:           "coreutils: Non-privileged session can escape to the parent session in chroot",
 				},
-				Message: ptr.Ptr("Package: coreutils\nInstalled Version: 9.4-3ubuntu6\nVulnerability CVE-2016-2781\nSeverity: LOW\nFixed Version: \nLink: [CVE-2016-2781](https://avd.aquasec.com/nvd/cve-2016-2781)"),
+				Message: ptr.Ptr("Original Description: chroot in GNU coreutils, when used with --userspec, allows local users to escape to the parent session via a crafted TIOCSTI ioctl call, which pushes characters to the terminal's input buffer.\n Help: Vulnerability CVE-2016-2781\nSeverity: LOW\nPackage: coreutils\nFixed Version: \nLink: [CVE-2016-2781](https://avd.aquasec.com/nvd/cve-2016-2781)\nchroot in GNU coreutils, when used with --userspec, allows local users to escape to the parent session via a crafted TIOCSTI ioctl call, which pushes characters to the terminal's input buffer.\n HelpUri: https://avd.aquasec.com/nvd/cve-2016-2781"),
 				Metadata: &ocsf.Metadata{
 					EventCode: ptr.Ptr("CVE-2016-2781"),
 					Product: &ocsf.Product{
@@ -1285,16 +1483,16 @@ func Test_ParseOut(t *testing.T) {
 						},
 						AffectedPackages: []*ocsf.AffectedPackage{
 							{
-								Name:           "image.tar",
+								Name:           "image",
 								PackageManager: ptr.Ptr("docker"),
-								Purl:           ptr.Ptr("pkg:docker/workspace/source-code/image.tar"),
+								Purl:           ptr.Ptr("pkg:docker/ghcr.io/foo/image@v1.2.3"),
 							},
 						},
 						Cve: &ocsf.Cve{
 							Desc: ptr.Ptr("chroot in GNU coreutils, when used with --userspec, allows local users to escape to the parent session via a crafted TIOCSTI ioctl call, which pushes characters to the terminal's input buffer."),
 							Uid:  "CVE-2016-2781",
 						},
-						Desc:            ptr.Ptr("chroot in GNU coreutils, when used with --userspec, allows local users to escape to the parent session via a crafted TIOCSTI ioctl call, which pushes characters to the terminal's input buffer."),
+						Desc:            ptr.Ptr("Original Description: chroot in GNU coreutils, when used with --userspec, allows local users to escape to the parent session via a crafted TIOCSTI ioctl call, which pushes characters to the terminal's input buffer.\n Help: Vulnerability CVE-2016-2781\nSeverity: LOW\nPackage: coreutils\nFixed Version: \nLink: [CVE-2016-2781](https://avd.aquasec.com/nvd/cve-2016-2781)\nchroot in GNU coreutils, when used with --userspec, allows local users to escape to the parent session via a crafted TIOCSTI ioctl call, which pushes characters to the terminal's input buffer.\n HelpUri: https://avd.aquasec.com/nvd/cve-2016-2781"),
 						FirstSeenTime:   ptr.Ptr(now.Unix()),
 						FirstSeenTimeDt: timestamppb.New(now),
 						FixAvailable:    ptr.Ptr(false),
@@ -1302,7 +1500,7 @@ func Test_ParseOut(t *testing.T) {
 						LastSeenTime:    ptr.Ptr(now.Unix()),
 						LastSeenTimeDt:  timestamppb.New(now),
 						Severity:        ptr.Ptr("SEVERITY_ID_INFORMATIONAL"),
-						Title:           ptr.Ptr("OsPackageVulnerability"),
+						Title:           ptr.Ptr("coreutils: Non-privileged session can escape to the parent session in chroot"),
 						VendorName:      ptr.Ptr("Trivy"),
 					},
 				},
@@ -1318,12 +1516,10 @@ func Test_ParseOut(t *testing.T) {
 				ConfidenceId: ptr.Ptr(ocsf.VulnerabilityFinding_CONFIDENCE_ID_UNKNOWN),
 				Count:        ptr.Ptr(int32(1)),
 				FindingInfo: &ocsf.FindingInfo{
-					CreatedTime:   ptr.Ptr(now.Unix()),
-					CreatedTimeDt: timestamppb.New(now),
-					DataSources: []string{
-						"{\"uri\":{\"uriSchema\":\"URI_SCHEMA_PURL\", \"path\":\"pkg:docker//workspace/source-code/image.tar\"}, \"fileFindingLocationData\":{\"startLine\":1, \"endLine\":1, \"startColumn\":1, \"endColumn\":1}}",
-					},
-					Desc:            ptr.Ptr("GnuPG can be made to spin on a relatively small input by (for example) crafting a public key with thousands of signatures attached, compressed down to just a few KB."),
+					CreatedTime:     ptr.Ptr(now.Unix()),
+					CreatedTimeDt:   timestamppb.New(now),
+					DataSources:     []string{string(marshalledDataSources[1])},
+					Desc:            ptr.Ptr("Original Description: Package: gpgv\nInstalled Version: 2.4.4-2ubuntu17.2\nVulnerability CVE-2022-3219\nSeverity: LOW\nFixed Version: \nLink: [CVE-2022-3219](https://avd.aquasec.com/nvd/cve-2022-3219)\n Help: Vulnerability CVE-2022-3219\nSeverity: LOW\nPackage: gpgv\nFixed Version: \nLink: [CVE-2022-3219](https://avd.aquasec.com/nvd/cve-2022-3219)\nGnuPG can be made to spin on a relatively small input by (for example) crafting a public key with thousands of signatures attached, compressed down to just a few KB.\n HelpUri: https://avd.aquasec.com/nvd/cve-2022-3219"),
 					FirstSeenTime:   ptr.Ptr(now.Unix()),
 					FirstSeenTimeDt: timestamppb.New(now),
 					LastSeenTime:    ptr.Ptr(now.Unix()),
@@ -1332,9 +1528,9 @@ func Test_ParseOut(t *testing.T) {
 					ModifiedTimeDt:  timestamppb.New(now),
 					ProductUid:      ptr.Ptr("Trivy"),
 					Uid:             "d258a2dc-b324-46aa-9cea-28ba8d44fcb8",
-					Title:           "OsPackageVulnerability",
+					Title:           "gnupg: denial of service issue (resource consumption) using compressed packets",
 				},
-				Message: ptr.Ptr("Package: gpgv\nInstalled Version: 2.4.4-2ubuntu17.2\nVulnerability CVE-2022-3219\nSeverity: LOW\nFixed Version: \nLink: [CVE-2022-3219](https://avd.aquasec.com/nvd/cve-2022-3219)"),
+				Message: ptr.Ptr("Original Description: Package: gpgv\nInstalled Version: 2.4.4-2ubuntu17.2\nVulnerability CVE-2022-3219\nSeverity: LOW\nFixed Version: \nLink: [CVE-2022-3219](https://avd.aquasec.com/nvd/cve-2022-3219)\n Help: Vulnerability CVE-2022-3219\nSeverity: LOW\nPackage: gpgv\nFixed Version: \nLink: [CVE-2022-3219](https://avd.aquasec.com/nvd/cve-2022-3219)\nGnuPG can be made to spin on a relatively small input by (for example) crafting a public key with thousands of signatures attached, compressed down to just a few KB.\n HelpUri: https://avd.aquasec.com/nvd/cve-2022-3219"),
 				Metadata: &ocsf.Metadata{
 					EventCode: ptr.Ptr("CVE-2022-3219"),
 					Product: &ocsf.Product{
@@ -1361,16 +1557,16 @@ func Test_ParseOut(t *testing.T) {
 						},
 						AffectedPackages: []*ocsf.AffectedPackage{
 							{
-								Name:           "image.tar",
+								Name:           "image",
 								PackageManager: ptr.Ptr("docker"),
-								Purl:           ptr.Ptr("pkg:docker/workspace/source-code/image.tar"),
+								Purl:           ptr.Ptr("pkg:docker/ghcr.io/foo/image@v1.2.3"),
 							},
 						},
 						Cve: &ocsf.Cve{
 							Desc: ptr.Ptr("GnuPG can be made to spin on a relatively small input by (for example) crafting a public key with thousands of signatures attached, compressed down to just a few KB."),
 							Uid:  "CVE-2022-3219",
 						},
-						Desc:            ptr.Ptr("GnuPG can be made to spin on a relatively small input by (for example) crafting a public key with thousands of signatures attached, compressed down to just a few KB."),
+						Desc:            ptr.Ptr("Original Description: Package: gpgv\nInstalled Version: 2.4.4-2ubuntu17.2\nVulnerability CVE-2022-3219\nSeverity: LOW\nFixed Version: \nLink: [CVE-2022-3219](https://avd.aquasec.com/nvd/cve-2022-3219)\n Help: Vulnerability CVE-2022-3219\nSeverity: LOW\nPackage: gpgv\nFixed Version: \nLink: [CVE-2022-3219](https://avd.aquasec.com/nvd/cve-2022-3219)\nGnuPG can be made to spin on a relatively small input by (for example) crafting a public key with thousands of signatures attached, compressed down to just a few KB.\n HelpUri: https://avd.aquasec.com/nvd/cve-2022-3219"),
 						FirstSeenTime:   ptr.Ptr(now.Unix()),
 						FirstSeenTimeDt: timestamppb.New(now),
 						FixAvailable:    ptr.Ptr(false),
@@ -1378,15 +1574,15 @@ func Test_ParseOut(t *testing.T) {
 						LastSeenTime:    ptr.Ptr(now.Unix()),
 						LastSeenTimeDt:  timestamppb.New(now),
 						Severity:        ptr.Ptr("SEVERITY_ID_INFORMATIONAL"),
-						Title:           ptr.Ptr("OsPackageVulnerability"),
+						Title:           ptr.Ptr("gnupg: denial of service issue (resource consumption) using compressed packets"),
 						VendorName:      ptr.Ptr("Trivy"),
 					},
 				},
 			},
 		}
-		transformer, err := sariftransformer.NewTransformer(&sarifOutput, "docker", sariftransformer.TargetTypeImage, clock, MockUUIDProvider{FixedUUID: fixedUUID})
+		transformer, err := sariftransformer.NewTransformer(&sarifOutput, "docker", clock, MockUUIDProvider{FixedUUID: fixedUUID}, true)
 		require.NoError(t, err)
-		actualIssues, err := transformer.ToOCSF(context.Background())
+		actualIssues, err := transformer.ToOCSF(context.Background(), dataSource)
 		require.NoError(t, err)
 		require.Equal(t, len(actualIssues), len(expectedIssues))
 		// handle datasource differently see https://github.com/golang/protobuf/issues/1121
@@ -1411,6 +1607,61 @@ func Test_ParseOut(t *testing.T) {
 		var sarifOutput sarif.SchemaJson
 		require.NoError(t, json.Unmarshal(exampleOutput, &sarifOutput))
 
+		marshalledDataSources := []string{}
+		dataSource := &ocsffindinginfo.DataSource{
+			TargetType: ocsffindinginfo.DataSource_TARGET_TYPE_WEBSITE,
+			Uri: &ocsffindinginfo.DataSource_URI{
+				UriSchema: ocsffindinginfo.DataSource_URI_SCHEMA_FILE,
+				Path:      "file://main.go",
+			},
+			WebsiteMetadata: &ocsffindinginfo.DataSource_WebsiteMetadata{
+				Url: "http://bodgeit.com:8080/bodgeit",
+			},
+		}
+
+		dataSource.LocationData = &ocsffindinginfo.DataSource_FileFindingLocationData_{
+			FileFindingLocationData: &ocsffindinginfo.DataSource_FileFindingLocationData{
+				StartLine: 70,
+			},
+		}
+		dataSource.Uri = &ocsffindinginfo.DataSource_URI{
+			UriSchema: ocsffindinginfo.DataSource_URI_SCHEMA_WEBSITE,
+			Path:      "http://bodgeit.com:8080/bodgeit/search.jsp?q=%3C%2Ffont%3E%3CscrIpt%3Ealert%281%29%3B%3C%2FscRipt%3E%3Cfont%3E",
+		}
+		marshalledDataSource, err := protojson.Marshal(dataSource)
+		require.NoError(t, err)
+		marshalledDataSources = append(marshalledDataSources, string(marshalledDataSource))
+
+		dataSource.LocationData = &ocsffindinginfo.DataSource_FileFindingLocationData_{
+			FileFindingLocationData: &ocsffindinginfo.DataSource_FileFindingLocationData{
+				StartLine: 69,
+			},
+		}
+		dataSource.Uri = &ocsffindinginfo.DataSource_URI{
+			UriSchema: ocsffindinginfo.DataSource_URI_SCHEMA_WEBSITE,
+			Path:      "http://bodgeit.com:8080/bodgeit/contact.jsp",
+		}
+		marshalledDataSource, err = protojson.Marshal(dataSource)
+		require.NoError(t, err)
+		marshalledDataSources = append(marshalledDataSources, string(marshalledDataSource))
+
+		dataSource.LocationData = &ocsffindinginfo.DataSource_FileFindingLocationData_{
+			FileFindingLocationData: &ocsffindinginfo.DataSource_FileFindingLocationData{
+				StartLine: 1,
+			},
+		}
+		dataSource.Uri = &ocsffindinginfo.DataSource_URI{
+			UriSchema: ocsffindinginfo.DataSource_URI_SCHEMA_WEBSITE,
+			Path:      "http://bodgeit.com:8080/bodgeit/basket.jsp",
+		}
+		marshalledDataSource, err = protojson.Marshal(dataSource)
+		require.NoError(t, err)
+		marshalledDataSources = append(marshalledDataSources, string(marshalledDataSource))
+
+		// unset for the test
+		dataSource.LocationData = nil
+		dataSource.Uri = nil
+
 		clock := clockwork.NewFakeClockAt(staticNow)
 		now := staticNow
 		expectedIssues := []*ocsf.VulnerabilityFinding{
@@ -1425,11 +1676,9 @@ func Test_ParseOut(t *testing.T) {
 				ConfidenceId: ptr.Ptr(ocsf.VulnerabilityFinding_CONFIDENCE_ID_UNKNOWN),
 				Count:        ptr.Ptr(int32(1)),
 				FindingInfo: &ocsf.FindingInfo{
-					CreatedTime:   ptr.Ptr(now.Unix()),
-					CreatedTimeDt: timestamppb.New(now),
-					DataSources: []string{
-						"{\"uri\":{\"path\":\"http://bodgeit.com:8080/bodgeit/search.jsp?q=%3C%2Ffont%3E%3CscrIpt%3Ealert%281%29%3B%3C%2FscRipt%3E%3Cfont%3E\"},\"fileFindingLocationData\":{\"startLine\":70}}",
-					},
+					CreatedTime:     ptr.Ptr(now.Unix()),
+					CreatedTimeDt:   timestamppb.New(now),
+					DataSources:     []string{string(marshalledDataSources[0])},
 					Desc:            ptr.Ptr("Cross-site Scripting (XSS) is an attack technique that involves echoing attacker-supplied code into a user's browser instance. A browser instance can be a standard web browser client, or a browser object embedded in a software product such as the browser within WinAmp, an RSS reader, or an email client. The code itself is usually written in HTML/JavaScript, but may also extend to VBScript, ActiveX, Java, Flash, or any other browser-supported technology.\nWhen an attacker gets a user's browser to execute his/her code, the code will run within the security context (or zone) of the hosting web site. With this level of privilege, the code has the ability to read, modify and transmit any sensitive data accessible by the browser. A Cross-site Scripted user could have his/her account hijacked (cookie theft), their browser redirected to another location, or possibly shown fraudulent content delivered by the web site they are visiting. Cross-site Scripting attacks essentially compromise the trust relationship between a user and the web site. Applications utilizing browser object instances which load content from the file system may execute code under the local machine zone allowing for system compromise.\n\nThere are three types of Cross-site Scripting attacks: non-persistent, persistent and DOM-based.\nNon-persistent attacks and DOM-based attacks require a user to either visit a specially crafted link laced with malicious code, or visit a malicious web page containing a web form, which when posted to the vulnerable site, will mount the attack. Using a malicious form will oftentimes take place when the vulnerable resource only accepts HTTP POST requests. In such a case, the form can be submitted automatically, without the victim's knowledge (e.g. by using JavaScript). Upon clicking on the malicious link or submitting the malicious form, the XSS payload will get echoed back and will get interpreted by the user's browser and execute. Another technique to send almost arbitrary requests (GET and POST) is by using an embedded client, such as Adobe Flash.\nPersistent attacks occur when the malicious code is submitted to a web site where it's stored for a period of time. Examples of an attacker's favorite targets often include message board posts, web mail messages, and web chat software. The unsuspecting user is not required to interact with any additional site/link (e.g. an attacker site or a malicious link sent via email), just simply view the web page containing the code."),
 					FirstSeenTime:   ptr.Ptr(now.Unix()),
 					FirstSeenTimeDt: timestamppb.New(now),
@@ -1487,11 +1736,9 @@ func Test_ParseOut(t *testing.T) {
 				ConfidenceId: ptr.Ptr(ocsf.VulnerabilityFinding_CONFIDENCE_ID_UNKNOWN),
 				Count:        ptr.Ptr(int32(1)),
 				FindingInfo: &ocsf.FindingInfo{
-					CreatedTime:   ptr.Ptr(now.Unix()),
-					CreatedTimeDt: timestamppb.New(now),
-					DataSources: []string{
-						"{\"uri\":{\"path\":\"http://bodgeit.com:8080/bodgeit/contact.jsp\"},\"fileFindingLocationData\":{\"startLine\":69}}",
-					},
+					CreatedTime:     ptr.Ptr(now.Unix()),
+					CreatedTimeDt:   timestamppb.New(now),
+					DataSources:     []string{string(marshalledDataSources[1])},
 					Desc:            ptr.Ptr("Cross-site Scripting (XSS) is an attack technique that involves echoing attacker-supplied code into a user's browser instance. A browser instance can be a standard web browser client, or a browser object embedded in a software product such as the browser within WinAmp, an RSS reader, or an email client. The code itself is usually written in HTML/JavaScript, but may also extend to VBScript, ActiveX, Java, Flash, or any other browser-supported technology.\nWhen an attacker gets a user's browser to execute his/her code, the code will run within the security context (or zone) of the hosting web site. With this level of privilege, the code has the ability to read, modify and transmit any sensitive data accessible by the browser. A Cross-site Scripted user could have his/her account hijacked (cookie theft), their browser redirected to another location, or possibly shown fraudulent content delivered by the web site they are visiting. Cross-site Scripting attacks essentially compromise the trust relationship between a user and the web site. Applications utilizing browser object instances which load content from the file system may execute code under the local machine zone allowing for system compromise.\n\nThere are three types of Cross-site Scripting attacks: non-persistent, persistent and DOM-based.\nNon-persistent attacks and DOM-based attacks require a user to either visit a specially crafted link laced with malicious code, or visit a malicious web page containing a web form, which when posted to the vulnerable site, will mount the attack. Using a malicious form will oftentimes take place when the vulnerable resource only accepts HTTP POST requests. In such a case, the form can be submitted automatically, without the victim's knowledge (e.g. by using JavaScript). Upon clicking on the malicious link or submitting the malicious form, the XSS payload will get echoed back and will get interpreted by the user's browser and execute. Another technique to send almost arbitrary requests (GET and POST) is by using an embedded client, such as Adobe Flash.\nPersistent attacks occur when the malicious code is submitted to a web site where it's stored for a period of time. Examples of an attacker's favorite targets often include message board posts, web mail messages, and web chat software. The unsuspecting user is not required to interact with any additional site/link (e.g. an attacker site or a malicious link sent via email), just simply view the web page containing the code."),
 					FirstSeenTime:   ptr.Ptr(now.Unix()),
 					FirstSeenTimeDt: timestamppb.New(now),
@@ -1549,12 +1796,10 @@ func Test_ParseOut(t *testing.T) {
 				ConfidenceId: ptr.Ptr(ocsf.VulnerabilityFinding_CONFIDENCE_ID_UNKNOWN),
 				Count:        ptr.Ptr(int32(1)),
 				FindingInfo: &ocsf.FindingInfo{
-					CreatedTime:   ptr.Ptr(now.Unix()),
-					CreatedTimeDt: timestamppb.New(now),
-					DataSources: []string{
-						"{\"uri\":{\"path\":\"http://bodgeit.com:8080/bodgeit/basket.jsp\"},\"fileFindingLocationData\":{\"startLine\":1}}",
-					},
-					Desc:            ptr.Ptr("SQL injection may be possible."),
+					CreatedTime:     ptr.Ptr(now.Unix()),
+					CreatedTimeDt:   timestamppb.New(now),
+					DataSources:     []string{string(marshalledDataSources[2])},
+					Desc:            ptr.Ptr("The original page results were successfully replicated using the expression [5-2] as the parameter value\nThe parameter value being modified was stripped from the HTML output for the purposes of the comparison."),
 					FirstSeenTime:   ptr.Ptr(now.Unix()),
 					FirstSeenTimeDt: timestamppb.New(now),
 					LastSeenTime:    ptr.Ptr(now.Unix()),
@@ -1587,7 +1832,7 @@ func Test_ParseOut(t *testing.T) {
 							SrcUrl: ptr.Ptr("https://cwe.mitre.org/data/definitions/89.html"),
 							Uid:    "89",
 						},
-						Desc:            ptr.Ptr("SQL injection may be possible."),
+						Desc:            ptr.Ptr("The original page results were successfully replicated using the expression [5-2] as the parameter value\nThe parameter value being modified was stripped from the HTML output for the purposes of the comparison."),
 						FirstSeenTime:   ptr.Ptr(now.Unix()),
 						FirstSeenTimeDt: timestamppb.New(now),
 						FixAvailable:    ptr.Ptr(false),
@@ -1601,9 +1846,9 @@ func Test_ParseOut(t *testing.T) {
 				},
 			},
 		}
-		transformer, err := sariftransformer.NewTransformer(&sarifOutput, "", sariftransformer.TargetTypeWeb, clock, MockUUIDProvider{FixedUUID: fixedUUID})
+		transformer, err := sariftransformer.NewTransformer(&sarifOutput, "", clock, MockUUIDProvider{FixedUUID: fixedUUID}, true)
 		require.NoError(t, err)
-		actualIssues, err := transformer.ToOCSF(context.Background())
+		actualIssues, err := transformer.ToOCSF(context.Background(), dataSource)
 		require.NoError(t, err)
 		require.Equal(t, len(actualIssues), len(expectedIssues))
 
@@ -1615,7 +1860,7 @@ func Test_ParseOut(t *testing.T) {
 			for j, d := range e.GetFindingInfo().DataSources {
 				protojson.Unmarshal([]byte(d), &expectedDataSource)
 				protojson.Unmarshal([]byte(actualIssues[i].FindingInfo.DataSources[j]), &actualDatasource)
-				require.EqualExportedValues(t, &expectedDataSource, &actualDatasource)
+				require.EqualExportedValuesf(t, &expectedDataSource, &actualDatasource, "unequal values for datasources for finding %d", i)
 			}
 			expectedIssues[i].FindingInfo.DataSources = nil
 			actualIssues[i].FindingInfo.DataSources = nil
@@ -1629,6 +1874,25 @@ func Test_ParseOut(t *testing.T) {
 		require.NoError(t, err)
 		var sarifOutput sarif.SchemaJson
 		require.NoError(t, json.Unmarshal(exampleOutput, &sarifOutput))
+
+		marshalledDataSources := []string{}
+		dataSource := &ocsffindinginfo.DataSource{
+			TargetType: ocsffindinginfo.DataSource_TARGET_TYPE_REPOSITORY,
+			SourceCodeMetadata: &ocsffindinginfo.DataSource_SourceCodeMetadata{
+				RepositoryUrl: "github.com/foo/bar",
+				Reference:     "main",
+			},
+		}
+		dataSource.LocationData = &ocsffindinginfo.DataSource_FileFindingLocationData_{
+			FileFindingLocationData: &ocsffindinginfo.DataSource_FileFindingLocationData{
+				StartLine: 1,
+			},
+		}
+		marshalledDataSource, err := protojson.Marshal(dataSource)
+		require.NoError(t, err)
+		marshalledDataSources = append(marshalledDataSources, string(marshalledDataSource))
+		marshalledDataSources = append(marshalledDataSources, string(marshalledDataSource))
+		marshalledDataSources = append(marshalledDataSources, string(marshalledDataSource))
 
 		clock := clockwork.NewFakeClockAt(staticNow)
 		now := staticNow
@@ -1646,8 +1910,8 @@ func Test_ParseOut(t *testing.T) {
 				FindingInfo: &ocsf.FindingInfo{
 					CreatedTime:     ptr.Ptr(now.Unix()),
 					CreatedTimeDt:   timestamppb.New(now),
-					DataSources:     []string{"{\"fileFindingLocationData\":{\"startLine\":1}}"},
-					Desc:            ptr.Ptr("(CVE-2024-47764) cookie@0.3.1"),
+					DataSources:     []string{string(marshalledDataSources[0])},
+					Desc:            ptr.Ptr("This file introduces a vulnerable cookie package with a medium severity vulnerability."),
 					FirstSeenTime:   ptr.Ptr(now.Unix()),
 					FirstSeenTimeDt: timestamppb.New(now),
 					LastSeenTime:    ptr.Ptr(now.Unix()),
@@ -1656,7 +1920,7 @@ func Test_ParseOut(t *testing.T) {
 					ModifiedTimeDt:  timestamppb.New(now),
 					ProductUid:      ptr.Ptr("Snyk Open Source"),
 					Uid:             fixedUUID,
-					Title:           "This file introduces a vulnerable cookie package with a medium severity vulnerability.",
+					Title:           "Medium severity - Cross-site Scripting (XSS) vulnerability in cookie",
 				},
 				Message: ptr.Ptr("This file introduces a vulnerable cookie package with a medium severity vulnerability."),
 				Metadata: &ocsf.Metadata{
@@ -1693,7 +1957,7 @@ func Test_ParseOut(t *testing.T) {
 							Desc: ptr.Ptr("(CVE-2024-47764) cookie@0.3.1"),
 							Uid:  "CVE-2024-47764",
 						},
-						Desc:            ptr.Ptr("(CVE-2024-47764) cookie@0.3.1"),
+						Desc:            ptr.Ptr("This file introduces a vulnerable cookie package with a medium severity vulnerability."),
 						FirstSeenTime:   ptr.Ptr(now.Unix()),
 						FirstSeenTimeDt: timestamppb.New(now),
 						FixAvailable:    ptr.Ptr(true),
@@ -1702,7 +1966,7 @@ func Test_ParseOut(t *testing.T) {
 						LastSeenTimeDt:  timestamppb.New(now),
 
 						Severity:   ptr.Ptr("SEVERITY_ID_MEDIUM"),
-						Title:      ptr.Ptr("This file introduces a vulnerable cookie package with a medium severity vulnerability."),
+						Title:      ptr.Ptr("Medium severity - Cross-site Scripting (XSS) vulnerability in cookie"),
 						VendorName: ptr.Ptr("Snyk Open Source"),
 					},
 				},
@@ -1720,8 +1984,8 @@ func Test_ParseOut(t *testing.T) {
 				FindingInfo: &ocsf.FindingInfo{
 					CreatedTime:     ptr.Ptr(now.Unix()),
 					CreatedTimeDt:   timestamppb.New(now),
-					DataSources:     []string{"{\"fileFindingLocationData\":{\"startLine\":1}}"},
-					Desc:            ptr.Ptr("(CVE-2020-36048) engine.io@1.8.5"),
+					DataSources:     []string{string(marshalledDataSources[1])},
+					Desc:            ptr.Ptr("This file introduces a vulnerable engine.io package with a high severity vulnerability."),
 					FirstSeenTime:   ptr.Ptr(now.Unix()),
 					FirstSeenTimeDt: timestamppb.New(now),
 					LastSeenTime:    ptr.Ptr(now.Unix()),
@@ -1730,7 +1994,7 @@ func Test_ParseOut(t *testing.T) {
 					ModifiedTimeDt:  timestamppb.New(now),
 					ProductUid:      ptr.Ptr("Snyk Open Source"),
 					Uid:             fixedUUID,
-					Title:           "This file introduces a vulnerable engine.io package with a high severity vulnerability.",
+					Title:           "High severity - Denial of Service (DoS) vulnerability in engine.io",
 				},
 				Message: ptr.Ptr("This file introduces a vulnerable engine.io package with a high severity vulnerability."),
 				Metadata: &ocsf.Metadata{
@@ -1770,7 +2034,7 @@ func Test_ParseOut(t *testing.T) {
 						Cwe: &ocsf.Cwe{
 							Uid: "400",
 						},
-						Desc:            ptr.Ptr("(CVE-2020-36048) engine.io@1.8.5"),
+						Desc:            ptr.Ptr("This file introduces a vulnerable engine.io package with a high severity vulnerability."),
 						FirstSeenTime:   ptr.Ptr(now.Unix()),
 						FirstSeenTimeDt: timestamppb.New(now),
 						FixAvailable:    ptr.Ptr(true),
@@ -1779,7 +2043,7 @@ func Test_ParseOut(t *testing.T) {
 						LastSeenTimeDt:  timestamppb.New(now),
 
 						Severity:   ptr.Ptr("SEVERITY_ID_HIGH"),
-						Title:      ptr.Ptr("This file introduces a vulnerable engine.io package with a high severity vulnerability."),
+						Title:      ptr.Ptr("High severity - Denial of Service (DoS) vulnerability in engine.io"),
 						VendorName: ptr.Ptr("Snyk Open Source"),
 					},
 				},
@@ -1797,8 +2061,8 @@ func Test_ParseOut(t *testing.T) {
 				FindingInfo: &ocsf.FindingInfo{
 					CreatedTime:     ptr.Ptr(now.Unix()),
 					CreatedTimeDt:   timestamppb.New(now),
-					DataSources:     []string{"{\"fileFindingLocationData\":{\"startLine\":1}}"},
-					Desc:            ptr.Ptr("(CVE-2022-41940) engine.io@1.8.5"),
+					DataSources:     []string{string(marshalledDataSources[2])},
+					Desc:            ptr.Ptr("This file introduces a vulnerable engine.io package with a high severity vulnerability."),
 					FirstSeenTime:   ptr.Ptr(now.Unix()),
 					FirstSeenTimeDt: timestamppb.New(now),
 					LastSeenTime:    ptr.Ptr(now.Unix()),
@@ -1807,7 +2071,7 @@ func Test_ParseOut(t *testing.T) {
 					ModifiedTimeDt:  timestamppb.New(now),
 					ProductUid:      ptr.Ptr("Snyk Open Source"),
 					Uid:             fixedUUID,
-					Title:           "This file introduces a vulnerable engine.io package with a high severity vulnerability.",
+					Title:           "High severity - Denial of Service (DoS) vulnerability in engine.io",
 				},
 				Message: ptr.Ptr("This file introduces a vulnerable engine.io package with a high severity vulnerability."),
 				Metadata: &ocsf.Metadata{
@@ -1847,7 +2111,7 @@ func Test_ParseOut(t *testing.T) {
 						Cwe: &ocsf.Cwe{
 							Uid: "400",
 						},
-						Desc:            ptr.Ptr("(CVE-2022-41940) engine.io@1.8.5"),
+						Desc:            ptr.Ptr("This file introduces a vulnerable engine.io package with a high severity vulnerability."),
 						FirstSeenTime:   ptr.Ptr(now.Unix()),
 						FirstSeenTimeDt: timestamppb.New(now),
 						FixAvailable:    ptr.Ptr(true),
@@ -1856,15 +2120,15 @@ func Test_ParseOut(t *testing.T) {
 						LastSeenTimeDt:  timestamppb.New(now),
 
 						Severity:   ptr.Ptr("SEVERITY_ID_HIGH"),
-						Title:      ptr.Ptr("This file introduces a vulnerable engine.io package with a high severity vulnerability."),
+						Title:      ptr.Ptr("High severity - Denial of Service (DoS) vulnerability in engine.io"),
 						VendorName: ptr.Ptr("Snyk Open Source"),
 					},
 				},
 			},
 		}
-		transformer, err := sariftransformer.NewTransformer(&sarifOutput, "", sariftransformer.TargetTypeDependency, clock, MockUUIDProvider{FixedUUID: fixedUUID})
+		transformer, err := sariftransformer.NewTransformer(&sarifOutput, "", clock, MockUUIDProvider{FixedUUID: fixedUUID}, true)
 		require.NoError(t, err)
-		actualIssues, err := transformer.ToOCSF(context.Background())
+		actualIssues, err := transformer.ToOCSF(context.Background(), dataSource)
 
 		require.NoError(t, err)
 		require.Equal(t, len(actualIssues), len(expectedIssues))
@@ -1876,7 +2140,7 @@ func Test_ParseOut(t *testing.T) {
 			for j, d := range e.GetFindingInfo().DataSources {
 				protojson.Unmarshal([]byte(d), &expectedDataSource)
 				protojson.Unmarshal([]byte(actualIssues[i].FindingInfo.DataSources[j]), &actualDatasource)
-				require.EqualExportedValues(t, &expectedDataSource, &actualDatasource)
+				require.EqualExportedValuesf(t, &expectedDataSource, &actualDatasource, "unequal datasource for finding %d", i)
 			}
 			expectedIssues[i].FindingInfo.DataSources = nil
 			actualIssues[i].FindingInfo.DataSources = nil
