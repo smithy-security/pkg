@@ -21,22 +21,12 @@ import (
 	"github.com/smithy-security/pkg/utils"
 )
 
-const fixedUUID = "d258a2dc-b324-46aa-9cea-28ba8d44fcb8"
-
 var (
 	//go:embed testdata/gosec_v2.1.0.json
 	reportV2_1_0 []byte
 
 	staticNow = time.Date(2024, 11, 1, 0, 0, 0, 0, time.UTC)
 )
-
-type MockUUIDProvider struct {
-	FixedUUID string
-}
-
-func (m MockUUIDProvider) String() string {
-	return m.FixedUUID
-}
 
 func TestReportFromBytesV2_1_0(t *testing.T) {
 	const (
@@ -241,6 +231,7 @@ func Test_ParseOut(t *testing.T) {
 	t.Run("gosec testcase", func(t *testing.T) {
 		exampleOutput, err := os.ReadFile("./testdata/gosec_v2.1.0.sarifconversiontests.json")
 		require.NoError(t, err)
+
 		var sarifOutput sarif.SchemaJson
 		require.NoError(t, json.Unmarshal(exampleOutput, &sarifOutput))
 		marshalledDataSources := []string{}
@@ -263,7 +254,8 @@ func Test_ParseOut(t *testing.T) {
 				EndLine:     0,
 				StartColumn: 7,
 				EndColumn:   0,
-			}}
+			},
+		}
 		marshalledDataSource, err := protojson.Marshal(datasource)
 		require.NoError(t, err)
 
@@ -275,7 +267,8 @@ func Test_ParseOut(t *testing.T) {
 				EndLine:     83,
 				StartColumn: 7,
 				EndColumn:   7,
-			}}
+			},
+		}
 		marshalledDataSource, err = protojson.Marshal(datasource)
 		marshalledDataSources = append(marshalledDataSources, string(marshalledDataSource))
 		require.NoError(t, err)
@@ -283,7 +276,8 @@ func Test_ParseOut(t *testing.T) {
 		datasource.LocationData = &ocsffindinginfo.DataSource_FileFindingLocationData_{
 			FileFindingLocationData: &ocsffindinginfo.DataSource_FileFindingLocationData{
 				StartLine: 83,
-			}}
+			},
+		}
 		marshalledDataSource, err = protojson.Marshal(datasource)
 		marshalledDataSources = append(marshalledDataSources, string(marshalledDataSource))
 		require.NoError(t, err)
@@ -316,7 +310,7 @@ func Test_ParseOut(t *testing.T) {
 					ModifiedTime:    utils.Ptr(now.Unix()),
 					ModifiedTimeDt:  timestamppb.New(now),
 					ProductUid:      utils.Ptr("gosec"),
-					Uid:             fixedUUID,
+					Uid:             "5f0f6d49-1db2-5881-a269-a09e69803621",
 					Title:           "[test for missing endLine, common in some tools]",
 				},
 				Message: utils.Ptr("[test for missing endLine, common in some tools]"),
@@ -380,7 +374,7 @@ func Test_ParseOut(t *testing.T) {
 					ModifiedTime:    utils.Ptr(now.Unix()),
 					ModifiedTimeDt:  timestamppb.New(now),
 					ProductUid:      utils.Ptr("gosec"),
-					Uid:             fixedUUID,
+					Uid:             "9153a915-3b7d-5467-a2de-277ae6185001",
 					Title:           "Use of weak random number generator (math/rand instead of crypto/rand)",
 				},
 				Message: utils.Ptr("Use of weak random number generator (math/rand instead of crypto/rand)"),
@@ -446,7 +440,7 @@ func Test_ParseOut(t *testing.T) {
 					ModifiedTime:    utils.Ptr(now.Unix()),
 					ModifiedTimeDt:  timestamppb.New(now),
 					ProductUid:      utils.Ptr("gosec"),
-					Uid:             fixedUUID,
+					Uid:             "76d50156-59b0-5111-93c9-ae6df47015e2",
 					Title:           "Use of weak random number generator (math/rand instead of crypto/rand) - nil endline",
 				},
 				Message: utils.Ptr("Use of weak random number generator (math/rand instead of crypto/rand) - nil endline"),
@@ -478,22 +472,23 @@ func Test_ParseOut(t *testing.T) {
 							},
 						},
 						AffectedPackages: nil, // on purpose, we really want to make sure this is nil as opposed to any other default value since gosec is not handling packages
-
-						Desc:            utils.Ptr("Use of weak random number generator (math/rand instead of crypto/rand) - nil endline"),
-						FirstSeenTime:   utils.Ptr(now.Unix()),
-						FirstSeenTimeDt: timestamppb.New(now),
-						FixAvailable:    utils.Ptr(false),
-						IsFixAvailable:  utils.Ptr(false),
-						LastSeenTime:    utils.Ptr(now.Unix()),
-						LastSeenTimeDt:  timestamppb.New(now),
-						Severity:        utils.Ptr("SEVERITY_ID_HIGH"),
-						Title:           utils.Ptr("Use of weak random number generator (math/rand instead of crypto/rand) - nil endline"),
-						VendorName:      utils.Ptr("gosec"),
+						Desc:             utils.Ptr("Use of weak random number generator (math/rand instead of crypto/rand) - nil endline"),
+						FirstSeenTime:    utils.Ptr(now.Unix()),
+						FirstSeenTimeDt:  timestamppb.New(now),
+						FixAvailable:     utils.Ptr(false),
+						IsFixAvailable:   utils.Ptr(false),
+						LastSeenTime:     utils.Ptr(now.Unix()),
+						LastSeenTimeDt:   timestamppb.New(now),
+						Severity:         utils.Ptr("SEVERITY_ID_HIGH"),
+						Title:            utils.Ptr("Use of weak random number generator (math/rand instead of crypto/rand) - nil endline"),
+						VendorName:       utils.Ptr("gosec"),
 					},
 				},
 			},
 		}
-		transformer, err := sariftransformer.NewTransformer(&sarifOutput, "", clock, MockUUIDProvider{FixedUUID: fixedUUID}, true)
+		transformer, err := sariftransformer.NewTransformer(
+			&sarifOutput, "", clock, nil, true,
+		)
 		require.NoError(t, err)
 		actualIssues, err := transformer.ToOCSF(context.Background(), datasource)
 
@@ -568,7 +563,7 @@ func Test_ParseOut(t *testing.T) {
 					ModifiedTime:    utils.Ptr(now.Unix()),
 					ModifiedTimeDt:  timestamppb.New(now),
 					ProductUid:      utils.Ptr("Snyk Open Source"),
-					Uid:             fixedUUID,
+					Uid:             "6aa5ecb7-886c-5851-b60f-ad6e77b02360",
 					Title:           "Medium severity - Cross-site Scripting (XSS) vulnerability in cookie",
 				},
 				Message: utils.Ptr("Original Description: This file introduces a vulnerable cookie package with a medium severity vulnerability.\n Help: * Package Manager: npm\n* Vulnerable module: cookie\n* Introduced through: realtimechat@extwiii/Nodejs-Real-time-Chat-App#c2ffccab1a6ad4ade9f33eacb647997b8c2ff964, socket.io@1.7.4 and others\n### Detailed paths\n* _Introduced through_: realtimechat@extwiii/Nodejs-Real-time-Chat-App#c2ffccab1a6ad4ade9f33eacb647997b8c2ff964 › socket.io@1.7.4 › engine.io@1.8.5 › cookie@0.3.1\n# Overview\n\nAffected versions of this package are vulnerable to Cross-site Scripting (XSS) via the cookie `name`, `path`, or `domain`, which can be used to set unexpected values to other cookie fields.\r\n\r\n# Workaround\r\nUsers who are not able to upgrade to the fixed version should avoid passing untrusted or arbitrary values for the cookie fields and ensure they are set by the application instead of user input.\n# Details\n\nA cross-site scripting attack occurs when the attacker tricks a legitimate web-based application or site to accept a request as originating from a trusted source.\n\nThis is done by escaping the context of the web application; the web application then delivers that data to its users along with other trusted dynamic content, without validating it. The browser unknowingly executes malicious script on the client side (through client-side languages; usually JavaScript or HTML)  in order to perform actions that are otherwise typically blocked by the browser’s Same Origin Policy.\n\nInjecting malicious code is the most prevalent manner by which XSS is exploited; for this reason, escaping characters in order to prevent this manipulation is the top method for securing code against this vulnerability.\n\nEscaping means that the application is coded to mark key characters, and particularly key characters included in user input, to prevent those characters from being interpreted in a dangerous context. For example, in HTML, `<` can be coded as  `&lt`; and `>` can be coded as `&gt`; in order to be interpreted and displayed as themselves in text, while within the code itself, they are used for HTML tags. If malicious content is injected into an application that escapes special characters and that malicious content uses `<` and `>` as HTML tags, those characters are nonetheless not interpreted as HTML tags by the browser if they’ve been correctly escaped in the application code and in this way the attempted attack is diverted.\n \nThe most prominent use of XSS is to steal cookies (source: OWASP HttpOnly) and hijack user sessions, but XSS exploits have been used to expose sensitive information, enable access to privileged services and functionality and deliver malware. \n\n## Types of attacks\nThere are a few methods by which XSS can be manipulated:\n\n|Type|Origin|Description|\n|--|--|--|\n|**Stored**|Server|The malicious code is inserted in the application (usually as a link) by the attacker. The code is activated every time a user clicks the link.|\n|**Reflected**|Server|The attacker delivers a malicious link externally from the vulnerable web site application to a user. When clicked, malicious code is sent to the vulnerable web site, which reflects the attack back to the user’s browser.| \n|**DOM-based**|Client|The attacker forces the user’s browser to render a malicious page. The data in the page itself delivers the cross-site scripting data.|\n|**Mutated**| |The attacker injects code that appears safe, but is then rewritten and modified by the browser, while parsing the markup. An example is rebalancing unclosed quotation marks or even adding quotation marks to unquoted parameters.|\n\n## Affected environments\nThe following environments are susceptible to an XSS attack:\n\n* Web servers\n* Application servers\n* Web application environments\n\n## How to prevent\nThis section describes the top best practices designed to specifically protect your code: \n\n* Sanitize data input in an HTTP request before reflecting it back, ensuring all data is validated, filtered or escaped before echoing anything back to the user, such as the values of query parameters during searches. \n* Convert special characters such as `?`, `&`, `/`, `<`, `>` and spaces to their respective HTML or URL encoded equivalents. \n* Give users the option to disable client-side scripts.\n* Redirect invalid requests.\n* Detect simultaneous logins, including those from two separate IP addresses, and invalidate those sessions.\n* Use and enforce a Content Security Policy (source: Wikipedia) to disable any features that might be manipulated for an XSS attack.\n* Read the documentation for any of the libraries referenced in your code to understand which elements allow for embedded HTML.\n\n# Remediation\nUpgrade `cookie` to version 0.7.0 or higher.\n# References\n- [GitHub Commit](https://github.com/jshttp/cookie/commit/e10042845354fea83bd8f34af72475eed1dadf5c)\n- [GitHub PR](https://github.com/jshttp/cookie/pull/167)\n- [Red Hat Bugzilla Bug](https://bugzilla.redhat.com/show_bug.cgi?id=2316549)\n"),
@@ -642,7 +637,7 @@ func Test_ParseOut(t *testing.T) {
 					ModifiedTime:    utils.Ptr(now.Unix()),
 					ModifiedTimeDt:  timestamppb.New(now),
 					ProductUid:      utils.Ptr("Snyk Open Source"),
-					Uid:             fixedUUID,
+					Uid:             "14a13258-7227-501b-a3a4-fd425a92276a",
 					Title:           "High severity - Denial of Service (DoS) vulnerability in engine.io",
 				},
 				Message: utils.Ptr("Original Description: This file introduces a vulnerable engine.io package with a high severity vulnerability.\n Help: * Package Manager: npm\n* Vulnerable module: engine.io\n* Introduced through: realtimechat@extwiii/Nodejs-Real-time-Chat-App#c2ffccab1a6ad4ade9f33eacb647997b8c2ff964, socket.io@1.7.4 and others\n### Detailed paths\n* _Introduced through_: realtimechat@extwiii/Nodejs-Real-time-Chat-App#c2ffccab1a6ad4ade9f33eacb647997b8c2ff964 › socket.io@1.7.4 › engine.io@1.8.5\n# Overview\n[engine.io](https://github.com/socketio/engine.io) is a realtime engine behind Socket.IO. It provides the foundation of a bidirectional connection between client and server\n\nAffected versions of this package are vulnerable to Denial of Service (DoS) via a POST request to the long polling transport.\n\n# Details\n\nDenial of Service (DoS) describes a family of attacks, all aimed at making a system inaccessible to its intended and legitimate users.\n\nUnlike other vulnerabilities, DoS attacks usually do not aim at breaching security. Rather, they are focused on making websites and services unavailable to genuine users resulting in downtime.\n\nOne popular Denial of Service vulnerability is DDoS (a Distributed Denial of Service), an attack that attempts to clog network pipes to the system by generating a large volume of traffic from many machines.\n\nWhen it comes to open source libraries, DoS vulnerabilities allow attackers to trigger such a crash or crippling of the service by using a flaw either in the application code or from the use of open source libraries.\n\nTwo common types of DoS vulnerabilities:\n\n* High CPU/Memory Consumption- An attacker sending crafted requests that could cause the system to take a disproportionate amount of time to process. For example, [commons-fileupload:commons-fileupload](https://security.snyk.io/vuln/SNYK-JAVA-COMMONSFILEUPLOAD-30082).\n\n* Crash - An attacker sending crafted requests that could cause the system to crash. For Example,  [npm `ws` package](https://snyk.io/vuln/npm:ws:20171108)\n\n# Remediation\nUpgrade `engine.io` to version 3.6.0 or higher.\n# References\n- [GitHub Commit](https://github.com/socketio/engine.io/commit/58e274c437e9cbcf69fd913c813aad8fbd253703)\n- [GitHub Commit](https://github.com/socketio/engine.io/commit/734f9d1268840722c41219e69eb58318e0b2ac6b)\n- [GitHub Tags](https://github.com/socketio/engine.io/releases/tag/3.6.0)\n- [PoC](https://github.com/bcaller/kill-engine-io)\n- [Research Blogpost](https://blog.caller.xyz/socketio-engineio-dos/)\n"),
@@ -690,10 +685,9 @@ func Test_ParseOut(t *testing.T) {
 						IsFixAvailable:  utils.Ptr(true),
 						LastSeenTime:    utils.Ptr(now.Unix()),
 						LastSeenTimeDt:  timestamppb.New(now),
-
-						Severity:   utils.Ptr("SEVERITY_ID_HIGH"),
-						Title:      utils.Ptr("High severity - Denial of Service (DoS) vulnerability in engine.io"),
-						VendorName: utils.Ptr("Snyk Open Source"),
+						Severity:        utils.Ptr("SEVERITY_ID_HIGH"),
+						Title:           utils.Ptr("High severity - Denial of Service (DoS) vulnerability in engine.io"),
+						VendorName:      utils.Ptr("Snyk Open Source"),
 					},
 				},
 			},
@@ -719,7 +713,7 @@ func Test_ParseOut(t *testing.T) {
 					ModifiedTime:    utils.Ptr(now.Unix()),
 					ModifiedTimeDt:  timestamppb.New(now),
 					ProductUid:      utils.Ptr("Snyk Open Source"),
-					Uid:             fixedUUID,
+					Uid:             "60ccb666-be4d-5f1d-9501-a14de5fbb30a",
 					Title:           "High severity - Denial of Service (DoS) vulnerability in engine.io",
 				},
 				Message: utils.Ptr("Original Description: This file introduces a vulnerable engine.io package with a high severity vulnerability.\n Help: * Package Manager: npm\n* Vulnerable module: engine.io\n* Introduced through: realtimechat@extwiii/Nodejs-Real-time-Chat-App#c2ffccab1a6ad4ade9f33eacb647997b8c2ff964, socket.io@1.7.4 and others\n### Detailed paths\n* _Introduced through_: realtimechat@extwiii/Nodejs-Real-time-Chat-App#c2ffccab1a6ad4ade9f33eacb647997b8c2ff964 › socket.io@1.7.4 › engine.io@1.8.5\n# Overview\n[engine.io](https://github.com/socketio/engine.io) is a realtime engine behind Socket.IO. It provides the foundation of a bidirectional connection between client and server\n\nAffected versions of this package are vulnerable to Denial of Service (DoS). A malicious client could send a specially crafted HTTP request, triggering an uncaught exception and killing the `Node.js` process.\n\n# Details\n\nDenial of Service (DoS) describes a family of attacks, all aimed at making a system inaccessible to its intended and legitimate users.\n\nUnlike other vulnerabilities, DoS attacks usually do not aim at breaching security. Rather, they are focused on making websites and services unavailable to genuine users resulting in downtime.\n\nOne popular Denial of Service vulnerability is DDoS (a Distributed Denial of Service), an attack that attempts to clog network pipes to the system by generating a large volume of traffic from many machines.\n\nWhen it comes to open source libraries, DoS vulnerabilities allow attackers to trigger such a crash or crippling of the service by using a flaw either in the application code or from the use of open source libraries.\n\nTwo common types of DoS vulnerabilities:\n\n* High CPU/Memory Consumption- An attacker sending crafted requests that could cause the system to take a disproportionate amount of time to process. For example, [commons-fileupload:commons-fileupload](https://security.snyk.io/vuln/SNYK-JAVA-COMMONSFILEUPLOAD-30082).\n\n* Crash - An attacker sending crafted requests that could cause the system to crash. For Example,  [npm `ws` package](https://snyk.io/vuln/npm:ws:20171108)\n\n# Remediation\nUpgrade `engine.io` to version 3.6.1, 6.2.1 or higher.\n# References\n- [GitHub Commit](https://github.com/socketio/engine.io/commit/425e833ab13373edf1dd5a0706f07100db14e3c6)\n- [GitHub Commit](https://github.com/socketio/engine.io/commit/83c4071af871fc188298d7d591e95670bf9f9085)\n- [GitHub PR](https://github.com/socketio/engine.io/pull/658)\n"),
@@ -767,15 +761,16 @@ func Test_ParseOut(t *testing.T) {
 						IsFixAvailable:  utils.Ptr(true),
 						LastSeenTime:    utils.Ptr(now.Unix()),
 						LastSeenTimeDt:  timestamppb.New(now),
-
-						Severity:   utils.Ptr("SEVERITY_ID_HIGH"),
-						Title:      utils.Ptr("High severity - Denial of Service (DoS) vulnerability in engine.io"),
-						VendorName: utils.Ptr("Snyk Open Source"),
+						Severity:        utils.Ptr("SEVERITY_ID_HIGH"),
+						Title:           utils.Ptr("High severity - Denial of Service (DoS) vulnerability in engine.io"),
+						VendorName:      utils.Ptr("Snyk Open Source"),
 					},
 				},
 			},
 		}
-		transformer, err := sariftransformer.NewTransformer(&sarifOutput, "npm", clock, MockUUIDProvider{FixedUUID: fixedUUID}, true)
+		transformer, err := sariftransformer.NewTransformer(
+			&sarifOutput, "npm", clock, nil, true,
+		)
 		require.NoError(t, err)
 		actualIssues, err := transformer.ToOCSF(context.Background(), dataSource)
 
@@ -886,7 +881,7 @@ func Test_ParseOut(t *testing.T) {
 					ModifiedTime:    utils.Ptr(now.Unix()),
 					ModifiedTimeDt:  timestamppb.New(now),
 					ProductUid:      utils.Ptr("CodeQL"),
-					Uid:             fixedUUID,
+					Uid:             "989bcf18-7386-58e6-8bfa-e6f2e09260a0",
 					Title:           "Incorrect conversion between integer types",
 				},
 				Message: utils.Ptr("Incorrect conversion of an integer with architecture-dependent bit size from [strconv.Atoi](1) to a lower bit size type int32 without an upper bound check."),
@@ -954,7 +949,7 @@ func Test_ParseOut(t *testing.T) {
 					ModifiedTime:    utils.Ptr(now.Unix()),
 					ModifiedTimeDt:  timestamppb.New(now),
 					ProductUid:      utils.Ptr("CodeQL"),
-					Uid:             fixedUUID,
+					Uid:             "469a11c6-0581-5297-a5a4-ec5ce3dbb25b",
 					Title:           "Incorrect conversion between integer types",
 				},
 				Message: utils.Ptr("Incorrect conversion of an integer with architecture-dependent bit size from [strconv.Atoi](1) to a lower bit size type int32 without an upper bound check."),
@@ -1022,7 +1017,7 @@ func Test_ParseOut(t *testing.T) {
 					ModifiedTime:    utils.Ptr(now.Unix()),
 					ModifiedTimeDt:  timestamppb.New(now),
 					ProductUid:      utils.Ptr("CodeQL"),
-					Uid:             fixedUUID,
+					Uid:             "61a0495a-4150-5c1b-8bdb-51982994375d",
 					Title:           "Incorrect conversion between integer types",
 				},
 				Message: utils.Ptr("Incorrect conversion of an integer with architecture-dependent bit size from [strconv.Atoi](1) to a lower bit size type int32 without an upper bound check."),
@@ -1069,7 +1064,9 @@ func Test_ParseOut(t *testing.T) {
 				},
 			},
 		}
-		transformer, err := sariftransformer.NewTransformer(&sarifOutput, "", clock, MockUUIDProvider{FixedUUID: fixedUUID}, true)
+		transformer, err := sariftransformer.NewTransformer(
+			&sarifOutput, "", clock, nil, true,
+		)
 		require.NoError(t, err)
 		actualIssues, err := transformer.ToOCSF(context.Background(), dataSource)
 		require.NoError(t, err)
@@ -1182,7 +1179,7 @@ func Test_ParseOut(t *testing.T) {
 					ModifiedTime:    utils.Ptr(now.Unix()),
 					ModifiedTimeDt:  timestamppb.New(now),
 					ProductUid:      utils.Ptr("Semgrep OSS"),
-					Uid:             fixedUUID,
+					Uid:             "c2223123-ad72-543e-9563-1e2f82040ebd",
 					Title:           "Semgrep Finding: generic.secrets.security.detected-aws-access-key-id-value.detected-aws-access-key-id-value",
 				},
 				Message: utils.Ptr("Original Description: AWS Access Key ID Value detected. This is a sensitive credential and should not be hardcoded here. Instead, read this value from an environment variable or keep it in a separate, private file.\n Help: AWS Access Key ID Value detected. This is a sensitive credential and should not be hardcoded here. Instead, read this value from an environment variable or keep it in a separate, private file.\n💎 Enable cross-file analysis and Pro rules for free at sg.run/pro\n HelpUri: https://semgrep.dev/r/generic.secrets.security.detected-aws-access-key-id-value.detected-aws-access-key-id-value"),
@@ -1252,7 +1249,7 @@ func Test_ParseOut(t *testing.T) {
 					ModifiedTime:    utils.Ptr(now.Unix()),
 					ModifiedTimeDt:  timestamppb.New(now),
 					ProductUid:      utils.Ptr("Semgrep OSS"),
-					Uid:             fixedUUID,
+					Uid:             "23b6d9a5-30fb-5b14-99aa-37c96aa5ec71",
 					Title:           "Semgrep Finding: go.gorilla.security.audit.session-cookie-missing-httponly.session-cookie-missing-httponly",
 				},
 				Message: utils.Ptr("Original Description: A session cookie was detected without setting the 'HttpOnly' flag. The 'HttpOnly' flag for cookies instructs the browser to forbid client-side scripts from reading the cookie which mitigates XSS attacks. Set the 'HttpOnly' flag by setting 'HttpOnly' to 'true' in the Options struct.\n Help: A session cookie was detected without setting the 'HttpOnly' flag. The 'HttpOnly' flag for cookies instructs the browser to forbid client-side scripts from reading the cookie which mitigates XSS attacks. Set the 'HttpOnly' flag by setting 'HttpOnly' to 'true' in the Options struct.\n💎 Enable cross-file analysis and Pro rules for free at sg.run/pro\n HelpUri: https://semgrep.dev/r/go.gorilla.security.audit.session-cookie-missing-httponly.session-cookie-missing-httponly"),
@@ -1322,7 +1319,7 @@ func Test_ParseOut(t *testing.T) {
 					ModifiedTime:    utils.Ptr(now.Unix()),
 					ModifiedTimeDt:  timestamppb.New(now),
 					ProductUid:      utils.Ptr("Semgrep OSS"),
-					Uid:             fixedUUID,
+					Uid:             "d6cd4cb9-e6f5-56cf-8cff-069ca0fe8c2c",
 					Title:           "Semgrep Finding: go.lang.security.audit.dangerous-exec-command.dangerous-exec-command",
 				},
 				Message: utils.Ptr("Original Description: Detected non-static command inside Command. Audit the input to 'exec.Command'. If unverified user data can reach this call site, this is a code injection vulnerability. A malicious actor can inject a malicious script to execute arbitrary code.\n Help: Detected non-static command inside Command. Audit the input to 'exec.Command'. If unverified user data can reach this call site, this is a code injection vulnerability. A malicious actor can inject a malicious script to execute arbitrary code.\n💎 Enable cross-file analysis and Pro rules for free at sg.run/pro\n HelpUri: https://semgrep.dev/r/go.lang.security.audit.dangerous-exec-command.dangerous-exec-command"),
@@ -1368,7 +1365,9 @@ func Test_ParseOut(t *testing.T) {
 				},
 			},
 		}
-		transformer, err := sariftransformer.NewTransformer(&sarifOutput, "", clock, MockUUIDProvider{FixedUUID: fixedUUID}, true)
+		transformer, err := sariftransformer.NewTransformer(
+			&sarifOutput, "", clock, nil, true,
+		)
 		require.NoError(t, err)
 		actualIssues, err := transformer.ToOCSF(context.Background(), dataSource)
 		require.NoError(t, err)
@@ -1453,7 +1452,7 @@ func Test_ParseOut(t *testing.T) {
 					ModifiedTime:    utils.Ptr(now.Unix()),
 					ModifiedTimeDt:  timestamppb.New(now),
 					ProductUid:      utils.Ptr("Trivy"),
-					Uid:             "d258a2dc-b324-46aa-9cea-28ba8d44fcb8",
+					Uid:             "ae20db0d-2cb2-5746-970b-d3b26020a6d5",
 					Title:           "coreutils: Non-privileged session can escape to the parent session in chroot",
 				},
 				Message: utils.Ptr("Original Description: chroot in GNU coreutils, when used with --userspec, allows local users to escape to the parent session via a crafted TIOCSTI ioctl call, which pushes characters to the terminal's input buffer.\n Help: Vulnerability CVE-2016-2781\nSeverity: LOW\nPackage: coreutils\nFixed Version: \nLink: [CVE-2016-2781](https://avd.aquasec.com/nvd/cve-2016-2781)\nchroot in GNU coreutils, when used with --userspec, allows local users to escape to the parent session via a crafted TIOCSTI ioctl call, which pushes characters to the terminal's input buffer.\n HelpUri: https://avd.aquasec.com/nvd/cve-2016-2781"),
@@ -1527,7 +1526,7 @@ func Test_ParseOut(t *testing.T) {
 					ModifiedTime:    utils.Ptr(now.Unix()),
 					ModifiedTimeDt:  timestamppb.New(now),
 					ProductUid:      utils.Ptr("Trivy"),
-					Uid:             "d258a2dc-b324-46aa-9cea-28ba8d44fcb8",
+					Uid:             "3694df72-260b-5514-b969-880b469684e0",
 					Title:           "gnupg: denial of service issue (resource consumption) using compressed packets",
 				},
 				Message: utils.Ptr("Original Description: Package: gpgv\nInstalled Version: 2.4.4-2ubuntu17.2\nVulnerability CVE-2022-3219\nSeverity: LOW\nFixed Version: \nLink: [CVE-2022-3219](https://avd.aquasec.com/nvd/cve-2022-3219)\n Help: Vulnerability CVE-2022-3219\nSeverity: LOW\nPackage: gpgv\nFixed Version: \nLink: [CVE-2022-3219](https://avd.aquasec.com/nvd/cve-2022-3219)\nGnuPG can be made to spin on a relatively small input by (for example) crafting a public key with thousands of signatures attached, compressed down to just a few KB.\n HelpUri: https://avd.aquasec.com/nvd/cve-2022-3219"),
@@ -1580,7 +1579,9 @@ func Test_ParseOut(t *testing.T) {
 				},
 			},
 		}
-		transformer, err := sariftransformer.NewTransformer(&sarifOutput, "docker", clock, MockUUIDProvider{FixedUUID: fixedUUID}, true)
+		transformer, err := sariftransformer.NewTransformer(
+			&sarifOutput, "docker", clock, nil, true,
+		)
 		require.NoError(t, err)
 		actualIssues, err := transformer.ToOCSF(context.Background(), dataSource)
 		require.NoError(t, err)
@@ -1687,7 +1688,7 @@ func Test_ParseOut(t *testing.T) {
 					ModifiedTime:    utils.Ptr(now.Unix()),
 					ModifiedTimeDt:  timestamppb.New(now),
 					ProductUid:      utils.Ptr("ZAP"),
-					Uid:             fixedUUID,
+					Uid:             "d12d62ce-a615-527c-8e13-e79655e31a7d",
 					Title:           "Cross Site Scripting (Reflected)",
 				},
 				Message: utils.Ptr("Cross-site Scripting (XSS) is an attack technique that involves echoing attacker-supplied code into a user's browser instance. A browser instance can be a standard web browser client, or a browser object embedded in a software product such as the browser within WinAmp, an RSS reader, or an email client. The code itself is usually written in HTML/JavaScript, but may also extend to VBScript, ActiveX, Java, Flash, or any other browser-supported technology.\nWhen an attacker gets a user's browser to execute his/her code, the code will run within the security context (or zone) of the hosting web site. With this level of privilege, the code has the ability to read, modify and transmit any sensitive data accessible by the browser. A Cross-site Scripted user could have his/her account hijacked (cookie theft), their browser redirected to another location, or possibly shown fraudulent content delivered by the web site they are visiting. Cross-site Scripting attacks essentially compromise the trust relationship between a user and the web site. Applications utilizing browser object instances which load content from the file system may execute code under the local machine zone allowing for system compromise.\n\nThere are three types of Cross-site Scripting attacks: non-persistent, persistent and DOM-based.\nNon-persistent attacks and DOM-based attacks require a user to either visit a specially crafted link laced with malicious code, or visit a malicious web page containing a web form, which when posted to the vulnerable site, will mount the attack. Using a malicious form will oftentimes take place when the vulnerable resource only accepts HTTP POST requests. In such a case, the form can be submitted automatically, without the victim's knowledge (e.g. by using JavaScript). Upon clicking on the malicious link or submitting the malicious form, the XSS payload will get echoed back and will get interpreted by the user's browser and execute. Another technique to send almost arbitrary requests (GET and POST) is by using an embedded client, such as Adobe Flash.\nPersistent attacks occur when the malicious code is submitted to a web site where it's stored for a period of time. Examples of an attacker's favorite targets often include message board posts, web mail messages, and web chat software. The unsuspecting user is not required to interact with any additional site/link (e.g. an attacker site or a malicious link sent via email), just simply view the web page containing the code."),
@@ -1747,7 +1748,7 @@ func Test_ParseOut(t *testing.T) {
 					ModifiedTime:    utils.Ptr(now.Unix()),
 					ModifiedTimeDt:  timestamppb.New(now),
 					ProductUid:      utils.Ptr("ZAP"),
-					Uid:             fixedUUID,
+					Uid:             "be3749a7-3e6f-512c-9cd6-f6fd40dea190",
 					Title:           "Cross Site Scripting (Reflected)",
 				},
 				Message: utils.Ptr("Cross-site Scripting (XSS) is an attack technique that involves echoing attacker-supplied code into a user's browser instance. A browser instance can be a standard web browser client, or a browser object embedded in a software product such as the browser within WinAmp, an RSS reader, or an email client. The code itself is usually written in HTML/JavaScript, but may also extend to VBScript, ActiveX, Java, Flash, or any other browser-supported technology.\nWhen an attacker gets a user's browser to execute his/her code, the code will run within the security context (or zone) of the hosting web site. With this level of privilege, the code has the ability to read, modify and transmit any sensitive data accessible by the browser. A Cross-site Scripted user could have his/her account hijacked (cookie theft), their browser redirected to another location, or possibly shown fraudulent content delivered by the web site they are visiting. Cross-site Scripting attacks essentially compromise the trust relationship between a user and the web site. Applications utilizing browser object instances which load content from the file system may execute code under the local machine zone allowing for system compromise.\n\nThere are three types of Cross-site Scripting attacks: non-persistent, persistent and DOM-based.\nNon-persistent attacks and DOM-based attacks require a user to either visit a specially crafted link laced with malicious code, or visit a malicious web page containing a web form, which when posted to the vulnerable site, will mount the attack. Using a malicious form will oftentimes take place when the vulnerable resource only accepts HTTP POST requests. In such a case, the form can be submitted automatically, without the victim's knowledge (e.g. by using JavaScript). Upon clicking on the malicious link or submitting the malicious form, the XSS payload will get echoed back and will get interpreted by the user's browser and execute. Another technique to send almost arbitrary requests (GET and POST) is by using an embedded client, such as Adobe Flash.\nPersistent attacks occur when the malicious code is submitted to a web site where it's stored for a period of time. Examples of an attacker's favorite targets often include message board posts, web mail messages, and web chat software. The unsuspecting user is not required to interact with any additional site/link (e.g. an attacker site or a malicious link sent via email), just simply view the web page containing the code."),
@@ -1807,7 +1808,7 @@ func Test_ParseOut(t *testing.T) {
 					ModifiedTime:    utils.Ptr(now.Unix()),
 					ModifiedTimeDt:  timestamppb.New(now),
 					ProductUid:      utils.Ptr("ZAP"),
-					Uid:             fixedUUID,
+					Uid:             "cf72f5da-0b15-5607-9da9-73175addad99",
 					Title:           "SQL Injection",
 				},
 				Message: utils.Ptr("The original page results were successfully replicated using the expression [5-2] as the parameter value\nThe parameter value being modified was stripped from the HTML output for the purposes of the comparison."),
@@ -1846,7 +1847,9 @@ func Test_ParseOut(t *testing.T) {
 				},
 			},
 		}
-		transformer, err := sariftransformer.NewTransformer(&sarifOutput, "", clock, MockUUIDProvider{FixedUUID: fixedUUID}, true)
+		transformer, err := sariftransformer.NewTransformer(
+			&sarifOutput, "", clock, nil, true,
+		)
 		require.NoError(t, err)
 		actualIssues, err := transformer.ToOCSF(context.Background(), dataSource)
 		require.NoError(t, err)
@@ -1919,7 +1922,7 @@ func Test_ParseOut(t *testing.T) {
 					ModifiedTime:    utils.Ptr(now.Unix()),
 					ModifiedTimeDt:  timestamppb.New(now),
 					ProductUid:      utils.Ptr("Snyk Open Source"),
-					Uid:             fixedUUID,
+					Uid:             "6aa5ecb7-886c-5851-b60f-ad6e77b02360",
 					Title:           "Medium severity - Cross-site Scripting (XSS) vulnerability in cookie",
 				},
 				Message: utils.Ptr("Original Description: This file introduces a vulnerable cookie package with a medium severity vulnerability.\n Help: * Package Manager: npm\n* Vulnerable module: cookie\n* Introduced through: realtimechat@extwiii/Nodejs-Real-time-Chat-App#c2ffccab1a6ad4ade9f33eacb647997b8c2ff964, socket.io@1.7.4 and others\n### Detailed paths\n* _Introduced through_: realtimechat@extwiii/Nodejs-Real-time-Chat-App#c2ffccab1a6ad4ade9f33eacb647997b8c2ff964 › socket.io@1.7.4 › engine.io@1.8.5 › cookie@0.3.1\n# Overview\n\nAffected versions of this package are vulnerable to Cross-site Scripting (XSS) via the cookie `name`, `path`, or `domain`, which can be used to set unexpected values to other cookie fields.\r\n\r\n# Workaround\r\nUsers who are not able to upgrade to the fixed version should avoid passing untrusted or arbitrary values for the cookie fields and ensure they are set by the application instead of user input.\n# Details\n\nA cross-site scripting attack occurs when the attacker tricks a legitimate web-based application or site to accept a request as originating from a trusted source.\n\nThis is done by escaping the context of the web application; the web application then delivers that data to its users along with other trusted dynamic content, without validating it. The browser unknowingly executes malicious script on the client side (through client-side languages; usually JavaScript or HTML)  in order to perform actions that are otherwise typically blocked by the browser’s Same Origin Policy.\n\nInjecting malicious code is the most prevalent manner by which XSS is exploited; for this reason, escaping characters in order to prevent this manipulation is the top method for securing code against this vulnerability.\n\nEscaping means that the application is coded to mark key characters, and particularly key characters included in user input, to prevent those characters from being interpreted in a dangerous context. For example, in HTML, `<` can be coded as  `&lt`; and `>` can be coded as `&gt`; in order to be interpreted and displayed as themselves in text, while within the code itself, they are used for HTML tags. If malicious content is injected into an application that escapes special characters and that malicious content uses `<` and `>` as HTML tags, those characters are nonetheless not interpreted as HTML tags by the browser if they’ve been correctly escaped in the application code and in this way the attempted attack is diverted.\n \nThe most prominent use of XSS is to steal cookies (source: OWASP HttpOnly) and hijack user sessions, but XSS exploits have been used to expose sensitive information, enable access to privileged services and functionality and deliver malware. \n\n## Types of attacks\nThere are a few methods by which XSS can be manipulated:\n\n|Type|Origin|Description|\n|--|--|--|\n|**Stored**|Server|The malicious code is inserted in the application (usually as a link) by the attacker. The code is activated every time a user clicks the link.|\n|**Reflected**|Server|The attacker delivers a malicious link externally from the vulnerable web site application to a user. When clicked, malicious code is sent to the vulnerable web site, which reflects the attack back to the user’s browser.| \n|**DOM-based**|Client|The attacker forces the user’s browser to render a malicious page. The data in the page itself delivers the cross-site scripting data.|\n|**Mutated**| |The attacker injects code that appears safe, but is then rewritten and modified by the browser, while parsing the markup. An example is rebalancing unclosed quotation marks or even adding quotation marks to unquoted parameters.|\n\n## Affected environments\nThe following environments are susceptible to an XSS attack:\n\n* Web servers\n* Application servers\n* Web application environments\n\n## How to prevent\nThis section describes the top best practices designed to specifically protect your code: \n\n* Sanitize data input in an HTTP request before reflecting it back, ensuring all data is validated, filtered or escaped before echoing anything back to the user, such as the values of query parameters during searches. \n* Convert special characters such as `?`, `&`, `/`, `<`, `>` and spaces to their respective HTML or URL encoded equivalents. \n* Give users the option to disable client-side scripts.\n* Redirect invalid requests.\n* Detect simultaneous logins, including those from two separate IP addresses, and invalidate those sessions.\n* Use and enforce a Content Security Policy (source: Wikipedia) to disable any features that might be manipulated for an XSS attack.\n* Read the documentation for any of the libraries referenced in your code to understand which elements allow for embedded HTML.\n\n# Remediation\nUpgrade `cookie` to version 0.7.0 or higher.\n# References\n- [GitHub Commit](https://github.com/jshttp/cookie/commit/e10042845354fea83bd8f34af72475eed1dadf5c)\n- [GitHub PR](https://github.com/jshttp/cookie/pull/167)\n- [Red Hat Bugzilla Bug](https://bugzilla.redhat.com/show_bug.cgi?id=2316549)\n"),
@@ -1964,10 +1967,9 @@ func Test_ParseOut(t *testing.T) {
 						IsFixAvailable:  utils.Ptr(true),
 						LastSeenTime:    utils.Ptr(now.Unix()),
 						LastSeenTimeDt:  timestamppb.New(now),
-
-						Severity:   utils.Ptr("SEVERITY_ID_MEDIUM"),
-						Title:      utils.Ptr("Medium severity - Cross-site Scripting (XSS) vulnerability in cookie"),
-						VendorName: utils.Ptr("Snyk Open Source"),
+						Severity:        utils.Ptr("SEVERITY_ID_MEDIUM"),
+						Title:           utils.Ptr("Medium severity - Cross-site Scripting (XSS) vulnerability in cookie"),
+						VendorName:      utils.Ptr("Snyk Open Source"),
 					},
 				},
 			},
@@ -1993,7 +1995,7 @@ func Test_ParseOut(t *testing.T) {
 					ModifiedTime:    utils.Ptr(now.Unix()),
 					ModifiedTimeDt:  timestamppb.New(now),
 					ProductUid:      utils.Ptr("Snyk Open Source"),
-					Uid:             fixedUUID,
+					Uid:             "14a13258-7227-501b-a3a4-fd425a92276a",
 					Title:           "High severity - Denial of Service (DoS) vulnerability in engine.io",
 				},
 				Message: utils.Ptr("Original Description: This file introduces a vulnerable engine.io package with a high severity vulnerability.\n Help: * Package Manager: npm\n* Vulnerable module: engine.io\n* Introduced through: realtimechat@extwiii/Nodejs-Real-time-Chat-App#c2ffccab1a6ad4ade9f33eacb647997b8c2ff964, socket.io@1.7.4 and others\n### Detailed paths\n* _Introduced through_: realtimechat@extwiii/Nodejs-Real-time-Chat-App#c2ffccab1a6ad4ade9f33eacb647997b8c2ff964 › socket.io@1.7.4 › engine.io@1.8.5\n# Overview\n[engine.io](https://github.com/socketio/engine.io) is a realtime engine behind Socket.IO. It provides the foundation of a bidirectional connection between client and server\n\nAffected versions of this package are vulnerable to Denial of Service (DoS) via a POST request to the long polling transport.\n\n# Details\n\nDenial of Service (DoS) describes a family of attacks, all aimed at making a system inaccessible to its intended and legitimate users.\n\nUnlike other vulnerabilities, DoS attacks usually do not aim at breaching security. Rather, they are focused on making websites and services unavailable to genuine users resulting in downtime.\n\nOne popular Denial of Service vulnerability is DDoS (a Distributed Denial of Service), an attack that attempts to clog network pipes to the system by generating a large volume of traffic from many machines.\n\nWhen it comes to open source libraries, DoS vulnerabilities allow attackers to trigger such a crash or crippling of the service by using a flaw either in the application code or from the use of open source libraries.\n\nTwo common types of DoS vulnerabilities:\n\n* High CPU/Memory Consumption- An attacker sending crafted requests that could cause the system to take a disproportionate amount of time to process. For example, [commons-fileupload:commons-fileupload](https://security.snyk.io/vuln/SNYK-JAVA-COMMONSFILEUPLOAD-30082).\n\n* Crash - An attacker sending crafted requests that could cause the system to crash. For Example,  [npm `ws` package](https://snyk.io/vuln/npm:ws:20171108)\n\n# Remediation\nUpgrade `engine.io` to version 3.6.0 or higher.\n# References\n- [GitHub Commit](https://github.com/socketio/engine.io/commit/58e274c437e9cbcf69fd913c813aad8fbd253703)\n- [GitHub Commit](https://github.com/socketio/engine.io/commit/734f9d1268840722c41219e69eb58318e0b2ac6b)\n- [GitHub Tags](https://github.com/socketio/engine.io/releases/tag/3.6.0)\n- [PoC](https://github.com/bcaller/kill-engine-io)\n- [Research Blogpost](https://blog.caller.xyz/socketio-engineio-dos/)\n"),
@@ -2041,10 +2043,9 @@ func Test_ParseOut(t *testing.T) {
 						IsFixAvailable:  utils.Ptr(true),
 						LastSeenTime:    utils.Ptr(now.Unix()),
 						LastSeenTimeDt:  timestamppb.New(now),
-
-						Severity:   utils.Ptr("SEVERITY_ID_HIGH"),
-						Title:      utils.Ptr("High severity - Denial of Service (DoS) vulnerability in engine.io"),
-						VendorName: utils.Ptr("Snyk Open Source"),
+						Severity:        utils.Ptr("SEVERITY_ID_HIGH"),
+						Title:           utils.Ptr("High severity - Denial of Service (DoS) vulnerability in engine.io"),
+						VendorName:      utils.Ptr("Snyk Open Source"),
 					},
 				},
 			},
@@ -2070,7 +2071,7 @@ func Test_ParseOut(t *testing.T) {
 					ModifiedTime:    utils.Ptr(now.Unix()),
 					ModifiedTimeDt:  timestamppb.New(now),
 					ProductUid:      utils.Ptr("Snyk Open Source"),
-					Uid:             fixedUUID,
+					Uid:             "60ccb666-be4d-5f1d-9501-a14de5fbb30a",
 					Title:           "High severity - Denial of Service (DoS) vulnerability in engine.io",
 				},
 				Message: utils.Ptr("Original Description: This file introduces a vulnerable engine.io package with a high severity vulnerability.\n Help: * Package Manager: npm\n* Vulnerable module: engine.io\n* Introduced through: realtimechat@extwiii/Nodejs-Real-time-Chat-App#c2ffccab1a6ad4ade9f33eacb647997b8c2ff964, socket.io@1.7.4 and others\n### Detailed paths\n* _Introduced through_: realtimechat@extwiii/Nodejs-Real-time-Chat-App#c2ffccab1a6ad4ade9f33eacb647997b8c2ff964 › socket.io@1.7.4 › engine.io@1.8.5\n# Overview\n[engine.io](https://github.com/socketio/engine.io) is a realtime engine behind Socket.IO. It provides the foundation of a bidirectional connection between client and server\n\nAffected versions of this package are vulnerable to Denial of Service (DoS). A malicious client could send a specially crafted HTTP request, triggering an uncaught exception and killing the `Node.js` process.\n\n# Details\n\nDenial of Service (DoS) describes a family of attacks, all aimed at making a system inaccessible to its intended and legitimate users.\n\nUnlike other vulnerabilities, DoS attacks usually do not aim at breaching security. Rather, they are focused on making websites and services unavailable to genuine users resulting in downtime.\n\nOne popular Denial of Service vulnerability is DDoS (a Distributed Denial of Service), an attack that attempts to clog network pipes to the system by generating a large volume of traffic from many machines.\n\nWhen it comes to open source libraries, DoS vulnerabilities allow attackers to trigger such a crash or crippling of the service by using a flaw either in the application code or from the use of open source libraries.\n\nTwo common types of DoS vulnerabilities:\n\n* High CPU/Memory Consumption- An attacker sending crafted requests that could cause the system to take a disproportionate amount of time to process. For example, [commons-fileupload:commons-fileupload](https://security.snyk.io/vuln/SNYK-JAVA-COMMONSFILEUPLOAD-30082).\n\n* Crash - An attacker sending crafted requests that could cause the system to crash. For Example,  [npm `ws` package](https://snyk.io/vuln/npm:ws:20171108)\n\n# Remediation\nUpgrade `engine.io` to version 3.6.1, 6.2.1 or higher.\n# References\n- [GitHub Commit](https://github.com/socketio/engine.io/commit/425e833ab13373edf1dd5a0706f07100db14e3c6)\n- [GitHub Commit](https://github.com/socketio/engine.io/commit/83c4071af871fc188298d7d591e95670bf9f9085)\n- [GitHub PR](https://github.com/socketio/engine.io/pull/658)\n"),
@@ -2118,15 +2119,16 @@ func Test_ParseOut(t *testing.T) {
 						IsFixAvailable:  utils.Ptr(true),
 						LastSeenTime:    utils.Ptr(now.Unix()),
 						LastSeenTimeDt:  timestamppb.New(now),
-
-						Severity:   utils.Ptr("SEVERITY_ID_HIGH"),
-						Title:      utils.Ptr("High severity - Denial of Service (DoS) vulnerability in engine.io"),
-						VendorName: utils.Ptr("Snyk Open Source"),
+						Severity:        utils.Ptr("SEVERITY_ID_HIGH"),
+						Title:           utils.Ptr("High severity - Denial of Service (DoS) vulnerability in engine.io"),
+						VendorName:      utils.Ptr("Snyk Open Source"),
 					},
 				},
 			},
 		}
-		transformer, err := sariftransformer.NewTransformer(&sarifOutput, "", clock, MockUUIDProvider{FixedUUID: fixedUUID}, true)
+		transformer, err := sariftransformer.NewTransformer(
+			&sarifOutput, "", clock, nil, true,
+		)
 		require.NoError(t, err)
 		actualIssues, err := transformer.ToOCSF(context.Background(), dataSource)
 
