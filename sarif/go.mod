@@ -8,7 +8,8 @@ require (
 	github.com/jonboulle/clockwork v0.5.0
 	github.com/mitchellh/mapstructure v1.5.0
 	github.com/package-url/packageurl-go v0.1.3
-	github.com/smithy-security/smithy/sdk v0.0.11-alpha.0.20250429114645-86a9857fcaf9
+	github.com/smithy-security/pkg/utils v0.0.1
+	github.com/smithy-security/smithy/sdk v0.0.14-alpha
 	github.com/stretchr/testify v1.10.0
 	google.golang.org/protobuf v1.36.6
 )

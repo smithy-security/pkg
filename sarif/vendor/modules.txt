@@ -19,7 +19,10 @@ github.com/package-url/packageurl-go
 # github.com/pmezard/go-difflib v1.0.0
 ## explicit
 github.com/pmezard/go-difflib/difflib
-# github.com/smithy-security/smithy/sdk v0.0.11-alpha.0.20250429114645-86a9857fcaf9
+# github.com/smithy-security/pkg/utils v0.0.1
+## explicit; go 1.23.2
+github.com/smithy-security/pkg/utils
+# github.com/smithy-security/smithy/sdk v0.0.14-alpha
 ## explicit; go 1.23.2
 github.com/smithy-security/smithy/sdk/gen/ocsf_ext/finding_info/v1
 github.com/smithy-security/smithy/sdk/gen/ocsf_schema/v1
