@@ -152,9 +152,9 @@ func (s *SarifTransformer) transformToOCSF(toolName string, res *sarif.Result, d
 	confidence := s.mapConfidence(*ruleID, s.ruleToTools)
 
 	if res.OccurrenceCount != nil {
-		occurrencesCount = ptr.Ptr(int32(*res.OccurrenceCount))
+		occurrencesCount = utils.Ptr(int32(*res.OccurrenceCount))
 	} else {
-		occurrencesCount = ptr.Ptr(int32(1))
+		occurrencesCount = utils.Ptr(int32(1))
 	}
 	labels, err := s.mapProperties(res.Properties)
 	if err != nil {
@@ -165,28 +165,28 @@ func (s *SarifTransformer) transformToOCSF(toolName string, res *sarif.Result, d
 	if res.Provenance != nil {
 		if res.Provenance.FirstDetectionTimeUtc != nil {
 			firstSeenTimeDT = timestamppb.New(*res.Provenance.FirstDetectionTimeUtc)
-			firstSeenTime = ptr.Ptr(res.Provenance.FirstDetectionTimeUtc.Unix())
+			firstSeenTime = utils.Ptr(res.Provenance.FirstDetectionTimeUtc.Unix())
 		} else {
-			firstSeenTime = ptr.Ptr(now.Unix())
+			firstSeenTime = utils.Ptr(now.Unix())
 			firstSeenTimeDT = timestamppb.New(now)
 		}
 
 		if res.Provenance.LastDetectionTimeUtc != nil {
 			lastSeenTimeDT = timestamppb.New(*res.Provenance.LastDetectionTimeUtc)
-			lastSeenTime = ptr.Ptr(res.Provenance.LastDetectionTimeUtc.Unix())
+			lastSeenTime = utils.Ptr(res.Provenance.LastDetectionTimeUtc.Unix())
 		} else {
-			lastSeenTime = ptr.Ptr(now.Unix())
+			lastSeenTime = utils.Ptr(now.Unix())
 			lastSeenTimeDT = timestamppb.New(now)
 		}
 
-		modifiedTime = ptr.Ptr(now.Unix())
+		modifiedTime = utils.Ptr(now.Unix())
 		modifiedTimeDT = timestamppb.New(now)
 	} else {
-		firstSeenTime = ptr.Ptr(now.Unix())
+		firstSeenTime = utils.Ptr(now.Unix())
 		firstSeenTimeDT = timestamppb.New(now)
-		lastSeenTime = ptr.Ptr(now.Unix())
+		lastSeenTime = utils.Ptr(now.Unix())
 		lastSeenTimeDT = timestamppb.New(now)
-		modifiedTime = ptr.Ptr(now.Unix())
+		modifiedTime = utils.Ptr(now.Unix())
 		modifiedTimeDT = timestamppb.New(now)
 	}
 
@@ -211,7 +211,7 @@ func (s *SarifTransformer) transformToOCSF(toolName string, res *sarif.Result, d
 	}
 
 	// Location
-	var fixAvailable = ptr.Ptr(len(res.Fixes) > 0)
+	var fixAvailable = utils.Ptr(len(res.Fixes) > 0)
 
 	if err := s.mergeDatasources(res, datasource); err != nil {
 		return nil, err
@@ -224,16 +224,16 @@ func (s *SarifTransformer) transformToOCSF(toolName string, res *sarif.Result, d
 	classID := ocsf.VulnerabilityFinding_CLASS_UID_VULNERABILITY_FINDING
 	return &ocsf.VulnerabilityFinding{
 		ActivityId:   activityID,
-		ActivityName: ptr.Ptr(ocsf.VulnerabilityFinding_ACTIVITY_ID_CREATE.String()),
-		CategoryName: ptr.Ptr(ocsf.VulnerabilityFinding_CATEGORY_UID_FINDINGS.String()),
+		ActivityName: utils.Ptr(ocsf.VulnerabilityFinding_ACTIVITY_ID_CREATE.String()),
+		CategoryName: utils.Ptr(ocsf.VulnerabilityFinding_CATEGORY_UID_FINDINGS.String()),
 		CategoryUid:  ocsf.VulnerabilityFinding_CATEGORY_UID_FINDINGS,
 		ClassUid:     classID,
-		ClassName:    ptr.Ptr(ocsf.VulnerabilityFinding_CLASS_UID_VULNERABILITY_FINDING.String()),
-		Confidence:   ptr.Ptr(confidence.String()),
-		ConfidenceId: ptr.Ptr(confidence),
+		ClassName:    utils.Ptr(ocsf.VulnerabilityFinding_CLASS_UID_VULNERABILITY_FINDING.String()),
+		Confidence:   utils.Ptr(confidence.String()),
+		ConfidenceId: utils.Ptr(confidence),
 		Count:        occurrencesCount,
 		FindingInfo: &ocsf.FindingInfo{
-			CreatedTime:     ptr.Ptr(now.Unix()),
+			CreatedTime:     utils.Ptr(now.Unix()),
 			CreatedTimeDt:   timestamppb.New(now),
 			DataSources:     []string{string(ds)},
 			Desc:            &desc,
@@ -259,14 +259,14 @@ func (s *SarifTransformer) transformToOCSF(toolName string, res *sarif.Result, d
 			Uid: ruleGuid,
 		},
 
-		Severity:   ptr.Ptr(severityID.String()),
+		Severity:   utils.Ptr(severityID.String()),
 		SeverityId: severityID,
-		StartTime:  ptr.Ptr(now.Unix()),
-		Status:     ptr.Ptr(s.mapResultKind(res.Kind).String()),
-		StatusId:   ptr.Ptr(s.mapResultKind(res.Kind)),
+		StartTime:  utils.Ptr(now.Unix()),
+		Status:     utils.Ptr(s.mapResultKind(res.Kind).String()),
+		StatusId:   utils.Ptr(s.mapResultKind(res.Kind)),
 		Time:       now.Unix(),
 		TimeDt:     timestamppb.New(now),
-		TypeName:   ptr.Ptr(typeName[int64(classID)*100+int64(activityID)]),
+		TypeName:   utils.Ptr(typeName[int64(classID)*100+int64(activityID)]),
 		TypeUid:    int64(classID)*100 + int64(activityID),
 		Vulnerabilities: []*ocsf.Vulnerability{
 			{
@@ -281,8 +281,8 @@ func (s *SarifTransformer) transformToOCSF(toolName string, res *sarif.Result, d
 				IsFixAvailable:   fixAvailable,
 				LastSeenTime:     lastSeenTime,
 				LastSeenTimeDt:   lastSeenTimeDT,
-				Severity:         ptr.Ptr(severityID.String()),
-				Title:            ptr.Ptr(title),
+				Severity:         utils.Ptr(severityID.String()),
+				Title:            utils.Ptr(title),
 				VendorName:       &toolName,
 			},
 		},
@@ -337,7 +337,7 @@ func (s *SarifTransformer) isSnykURI(uri string) bool {
 
 func (s *SarifTransformer) mapAffectedPackage(fixes []sarif.Fix, purl packageurl.PackageURL) *ocsf.AffectedPackage {
 	affectedPackage := &ocsf.AffectedPackage{
-		Purl:           ptr.Ptr(purl.String()),
+		Purl:           utils.Ptr(purl.String()),
 		Name:           purl.Name,
 		PackageManager: &purl.Type,
 	}
@@ -450,15 +450,15 @@ func (s *SarifTransformer) mapAffected(res *sarif.Result, datasource *ocsffindin
 			} else if !s.isSnykURI(*location.PhysicalLocation.ArtifactLocation.Uri) {
 				// Snyk special case, they use the repo url with some weird replacement as the artifact location
 				ac.File.Name = *location.PhysicalLocation.ArtifactLocation.Uri
-				ac.File.Path = ptr.Ptr(fmt.Sprintf("file://%s", *location.PhysicalLocation.ArtifactLocation.Uri))
+				ac.File.Path = utils.Ptr(fmt.Sprintf("file://%s", *location.PhysicalLocation.ArtifactLocation.Uri))
 			}
 		}
 		if physicalLocation.Region != nil {
 			if location.PhysicalLocation.Region.StartLine != nil {
-				ac.StartLine = ptr.Ptr(int32(*location.PhysicalLocation.Region.StartLine))
+				ac.StartLine = utils.Ptr(int32(*location.PhysicalLocation.Region.StartLine))
 			}
 			if location.PhysicalLocation.Region.EndLine != nil {
-				ac.EndLine = ptr.Ptr(int32(*location.PhysicalLocation.Region.EndLine))
+				ac.EndLine = utils.Ptr(int32(*location.PhysicalLocation.Region.EndLine))
 			}
 		}
 		if ac != (&ocsf.AffectedCode{}) {
