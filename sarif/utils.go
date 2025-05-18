@@ -9,9 +9,75 @@ import (
 	ocsf "github.com/smithy-security/smithy/sdk/gen/ocsf_schema/v1"
 )
 
-var cweRegex = regexp.MustCompile(`(?i)CWE-\d{3,}`)
+var (
+	cveRegExp = regexp.MustCompile(`((CVE|cve)-\d{4}-\d{4,7})`)
+	cweRegex  = regexp.MustCompile(`(?i)CWE-\d{3,}`)
+)
 
-func resolveCWE(
+func extractCVE(rule sarif.ReportingDescriptor) *ocsf.Cve {
+	var desc string
+	if rule.FullDescription != nil {
+		desc = rule.FullDescription.Text
+	}
+
+	if rule.Help != nil && desc == "" {
+		desc = rule.Help.Text
+	}
+
+	var uid string
+	if strings.HasPrefix(rule.Id, "CVE-") {
+		uid = rule.Id
+	}
+
+	if uid == "" && rule.FullDescription != nil {
+		uid = checkForCVE(rule.FullDescription.Text)
+	}
+
+	if uid == "" && rule.FullDescription != nil {
+		uid = checkForCVE(optionalStr(rule.FullDescription.Markdown))
+	}
+
+	if uid == "" && rule.Help != nil {
+		uid = checkForCVE(rule.Help.Text)
+	}
+
+	if uid == "" && rule.Help != nil {
+		uid = checkForCVE(optionalStr(rule.Help.Markdown))
+	}
+
+	if uid == "" {
+		return nil
+	}
+
+	uid = strings.ToUpper(uid)
+	if desc == "" {
+		return &ocsf.Cve{Uid: uid}
+	}
+
+	return &ocsf.Cve{
+		Uid:  uid,
+		Desc: &desc,
+	}
+}
+
+func optionalStr(s *string) string {
+	if s == nil {
+		return ""
+	}
+
+	return *s
+}
+
+func checkForCVE(text string) string {
+	match := cveRegExp.FindStringSubmatch(text)
+	if len(match) > 1 {
+		return match[1]
+	}
+
+	return ""
+}
+
+func extractCWE(
 	ruleID string,
 	taxasByCWEID map[string]sarif.ReportingDescriptor,
 	ruleToTools map[string]sarif.ReportingDescriptor,
