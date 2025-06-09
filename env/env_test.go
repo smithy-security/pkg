@@ -301,7 +301,7 @@ func TestFromEnvOrDefault(t *testing.T) {
 	})
 
 	t.Run("uint32", func(t *testing.T) {
-		const defaultVal = 1234
+		const defaultVal uint32 = 1234
 
 		loader := testLoader(map[string]string{
 			"KNOWN_UINT32":         "5678",
@@ -310,8 +310,8 @@ func TestFromEnvOrDefault(t *testing.T) {
 
 		for _, tt := range []struct {
 			envVar        string
-			expectedVal   uint
-			defaultVal    uint
+			expectedVal   uint32
+			defaultVal    uint32
 			shouldDefault bool
 			expectsError  bool
 		}{
