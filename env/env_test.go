@@ -300,6 +300,53 @@ func TestFromEnvOrDefault(t *testing.T) {
 		}
 	})
 
+	t.Run("uint32", func(t *testing.T) {
+		const defaultVal = 1234
+
+		loader := testLoader(map[string]string{
+			"KNOWN_UINT32":         "5678",
+			"KNOWN_INVALID_UINT64": "not_a_uint32",
+		})
+
+		for _, tt := range []struct {
+			envVar        string
+			expectedVal   uint
+			defaultVal    uint
+			shouldDefault bool
+			expectsError  bool
+		}{
+			{
+				envVar:        "KNOWN_UINT32",
+				expectedVal:   5678,
+				shouldDefault: false,
+				expectsError:  false,
+			},
+			{
+				envVar:        "KNOWN_INVALID_UINT32",
+				expectedVal:   defaultVal,
+				defaultVal:    defaultVal,
+				shouldDefault: true,
+				expectsError:  false,
+			},
+			{
+				envVar:        "KNOWN_INVALID_UINT32",
+				defaultVal:    defaultVal,
+				shouldDefault: false,
+				expectsError:  true,
+			},
+		} {
+			t.Run(tt.envVar, func(t *testing.T) {
+				val, err := env.GetOrDefault(
+					tt.envVar,
+					tt.defaultVal,
+					env.WithLoader(loader),
+					env.WithDefaultOnError(tt.shouldDefault),
+				)
+				expectationsChecker(t, val, tt.expectedVal, tt.defaultVal, err, tt.shouldDefault, tt.expectsError)
+			})
+		}
+	})
+
 	t.Run("float64", func(t *testing.T) {
 		const defaultVal = 64.4
 
