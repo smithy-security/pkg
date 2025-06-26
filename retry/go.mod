@@ -1,6 +1,6 @@
 module github.com/smithy-security/pkg/retry
 
-go 1.24.0
+go 1.23
 
 require (
 	github.com/cenkalti/backoff/v5 v5.0.2
