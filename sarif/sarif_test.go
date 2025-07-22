@@ -490,10 +490,10 @@ func Test_ParseOut(t *testing.T) {
 			},
 		}
 		transformer, err := sariftransformer.NewTransformer(
-			&sarifOutput, "", clock, nil, true,
+			&sarifOutput, "", clock, nil, true, datasource,
 		)
 		require.NoError(t, err)
-		actualIssues, err := transformer.ToOCSF(context.Background(), datasource)
+		actualIssues, err := transformer.ToOCSF(context.Background())
 
 		require.NoError(t, err)
 		require.Equal(t, len(actualIssues), len(expectedIssues))
@@ -775,10 +775,10 @@ func Test_ParseOut(t *testing.T) {
 			},
 		}
 		transformer, err := sariftransformer.NewTransformer(
-			&sarifOutput, "npm", clock, nil, true,
+			&sarifOutput, "npm", clock, nil, true, dataSource,
 		)
 		require.NoError(t, err)
-		actualIssues, err := transformer.ToOCSF(context.Background(), dataSource)
+		actualIssues, err := transformer.ToOCSF(context.Background())
 
 		require.NoError(t, err)
 		require.Equal(t, len(actualIssues), len(expectedIssues))
@@ -1073,13 +1073,16 @@ func Test_ParseOut(t *testing.T) {
 				},
 			},
 		}
+
 		transformer, err := sariftransformer.NewTransformer(
-			&sarifOutput, "", clock, nil, true,
+			&sarifOutput, "", clock, nil, true, dataSource,
 		)
 		require.NoError(t, err)
-		actualIssues, err := transformer.ToOCSF(context.Background(), dataSource)
+
+		actualIssues, err := transformer.ToOCSF(context.Background())
 		require.NoError(t, err)
 		require.Equal(t, len(actualIssues), len(expectedIssues))
+
 		// handle datasource differently see https://github.com/golang/protobuf/issues/1121
 		for i, e := range expectedIssues {
 			var expectedDataSource, actualDatasource ocsffindinginfo.DataSource
@@ -1378,10 +1381,10 @@ func Test_ParseOut(t *testing.T) {
 			},
 		}
 		transformer, err := sariftransformer.NewTransformer(
-			&sarifOutput, "", clock, nil, true,
+			&sarifOutput, "", clock, nil, true, dataSource,
 		)
 		require.NoError(t, err)
-		actualIssues, err := transformer.ToOCSF(context.Background(), dataSource)
+		actualIssues, err := transformer.ToOCSF(context.Background())
 		require.NoError(t, err)
 		require.Equal(t, len(actualIssues), len(expectedIssues))
 		// handle datasource differently see https://github.com/golang/protobuf/issues/1121
@@ -1594,10 +1597,10 @@ func Test_ParseOut(t *testing.T) {
 			},
 		}
 		transformer, err := sariftransformer.NewTransformer(
-			&sarifOutput, "docker", clock, nil, true,
+			&sarifOutput, "docker", clock, nil, true, dataSource,
 		)
 		require.NoError(t, err)
-		actualIssues, err := transformer.ToOCSF(context.Background(), dataSource)
+		actualIssues, err := transformer.ToOCSF(context.Background())
 		require.NoError(t, err)
 		require.Equal(t, len(actualIssues), len(expectedIssues))
 		// handle datasource differently see https://github.com/golang/protobuf/issues/1121
@@ -1625,10 +1628,6 @@ func Test_ParseOut(t *testing.T) {
 		marshalledDataSources := []string{}
 		dataSource := &ocsffindinginfo.DataSource{
 			TargetType: ocsffindinginfo.DataSource_TARGET_TYPE_WEBSITE,
-			Uri: &ocsffindinginfo.DataSource_URI{
-				UriSchema: ocsffindinginfo.DataSource_URI_SCHEMA_FILE,
-				Path:      "file://main.go",
-			},
 			WebsiteMetadata: &ocsffindinginfo.DataSource_WebsiteMetadata{
 				Url: "http://bodgeit.com:8080/bodgeit",
 			},
@@ -1865,10 +1864,10 @@ func Test_ParseOut(t *testing.T) {
 			},
 		}
 		transformer, err := sariftransformer.NewTransformer(
-			&sarifOutput, "", clock, nil, true,
+			&sarifOutput, "", clock, nil, true, dataSource,
 		)
 		require.NoError(t, err)
-		actualIssues, err := transformer.ToOCSF(context.Background(), dataSource)
+		actualIssues, err := transformer.ToOCSF(context.Background())
 		require.NoError(t, err)
 		require.Equal(t, len(actualIssues), len(expectedIssues))
 
@@ -2147,10 +2146,10 @@ func Test_ParseOut(t *testing.T) {
 			},
 		}
 		transformer, err := sariftransformer.NewTransformer(
-			&sarifOutput, "", clock, nil, true,
+			&sarifOutput, "", clock, nil, true, dataSource,
 		)
 		require.NoError(t, err)
-		actualIssues, err := transformer.ToOCSF(context.Background(), dataSource)
+		actualIssues, err := transformer.ToOCSF(context.Background())
 
 		require.NoError(t, err)
 		require.Equal(t, len(actualIssues), len(expectedIssues))
