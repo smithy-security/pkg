@@ -1629,7 +1629,7 @@ func Test_ParseOut(t *testing.T) {
 		dataSource := &ocsffindinginfo.DataSource{
 			TargetType: ocsffindinginfo.DataSource_TARGET_TYPE_WEBSITE,
 			WebsiteMetadata: &ocsffindinginfo.DataSource_WebsiteMetadata{
-				Url: "http://bodgeit.com:8080/bodgeit",
+				Url: "http://bodgeit.com:8080",
 			},
 		}
 
@@ -1640,7 +1640,7 @@ func Test_ParseOut(t *testing.T) {
 		}
 		dataSource.Uri = &ocsffindinginfo.DataSource_URI{
 			UriSchema: ocsffindinginfo.DataSource_URI_SCHEMA_WEBSITE,
-			Path:      "http://bodgeit.com:8080/bodgeit/search.jsp?q=%3C%2Ffont%3E%3CscrIpt%3Ealert%281%29%3B%3C%2FscRipt%3E%3Cfont%3E",
+			Path:      "/bodgeit/search.jsp?q=%3C%2Ffont%3E%3CscrIpt%3Ealert%281%29%3B%3C%2FscRipt%3E%3Cfont%3E",
 		}
 		marshalledDataSource, err := protojson.Marshal(dataSource)
 		require.NoError(t, err)
@@ -1653,7 +1653,7 @@ func Test_ParseOut(t *testing.T) {
 		}
 		dataSource.Uri = &ocsffindinginfo.DataSource_URI{
 			UriSchema: ocsffindinginfo.DataSource_URI_SCHEMA_WEBSITE,
-			Path:      "http://bodgeit.com:8080/bodgeit/contact.jsp",
+			Path:      "/bodgeit/contact.jsp",
 		}
 		marshalledDataSource, err = protojson.Marshal(dataSource)
 		require.NoError(t, err)
@@ -1666,7 +1666,7 @@ func Test_ParseOut(t *testing.T) {
 		}
 		dataSource.Uri = &ocsffindinginfo.DataSource_URI{
 			UriSchema: ocsffindinginfo.DataSource_URI_SCHEMA_WEBSITE,
-			Path:      "http://bodgeit.com:8080/bodgeit/basket.jsp",
+			Path:      "/bodgeit/basket.jsp",
 		}
 		marshalledDataSource, err = protojson.Marshal(dataSource)
 		require.NoError(t, err)
