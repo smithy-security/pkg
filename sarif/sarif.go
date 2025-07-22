@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"log/slog"
+	"net/url"
 	"path/filepath"
 	"strings"
 
@@ -42,16 +43,30 @@ var typeName = map[int64]string{
 }
 
 func validateDataSource(dataSource *ocsffindinginfo.DataSource) error {
+	if dataSource == nil {
+		return errors.Errorf("no data source info provided to transformer")
+	}
+
 	switch {
 	case dataSource.TargetType == ocsffindinginfo.DataSource_TARGET_TYPE_CONTAINER_IMAGE && dataSource.OciPackageMetadata == nil:
 		return errors.Errorf("target metadata document doesn't have oci package metadata")
 	case dataSource.TargetType == ocsffindinginfo.DataSource_TARGET_TYPE_REPOSITORY && dataSource.SourceCodeMetadata == nil:
 		return errors.Errorf("target metadata document doesn't have source code metadata")
-	case dataSource.TargetType == ocsffindinginfo.DataSource_TARGET_TYPE_WEBSITE && dataSource.WebsiteMetadata == nil:
-		return errors.Errorf("target metadata document doesn't website metadata")
-	default:
-		return nil
+	case dataSource.TargetType == ocsffindinginfo.DataSource_TARGET_TYPE_WEBSITE:
+		if dataSource.WebsiteMetadata == nil {
+			return errors.Errorf("target metadata document doesn't website metadata")
+		}
+
+		websiteURL, err := url.Parse(dataSource.WebsiteMetadata.Url)
+		if err != nil {
+			return errors.Errorf("could not parse the finding website URL: %w", err)
+		}
+
+		websiteURL.Path = ""
+		dataSource.WebsiteMetadata.Url = websiteURL.String()
 	}
+
+	return nil
 }
 
 func NewTransformer(
@@ -636,9 +651,16 @@ func (s *SarifTransformer) mergeDataSources(
 			Reference:     s.dataSource.SourceCodeMetadata.Reference,
 		}
 	case ocsffindinginfo.DataSource_TARGET_TYPE_WEBSITE:
+		parsedURL, err := url.Parse(*location.PhysicalLocation.ArtifactLocation.Uri)
+		if err != nil {
+			return nil, errors.Errorf("could not parse finding URL: %w", err)
+		}
+
+		parsedURL.Host = ""
+		parsedURL.Scheme = ""
 		dataSource.Uri = &ocsffindinginfo.DataSource_URI{
 			UriSchema: ocsffindinginfo.DataSource_URI_SCHEMA_WEBSITE,
-			Path:      *location.PhysicalLocation.ArtifactLocation.Uri,
+			Path:      parsedURL.String(),
 		}
 
 		dataSource.WebsiteMetadata = &ocsffindinginfo.DataSource_WebsiteMetadata{
