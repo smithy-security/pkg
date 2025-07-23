@@ -510,8 +510,10 @@ func Test_ParseOut(t *testing.T) {
 			expectedIssues[i].FindingInfo.DataSources = nil
 			actualIssues[i].FindingInfo.DataSources = nil
 		}
+
 		require.EqualExportedValues(t, expectedIssues, actualIssues)
 	})
+
 	t.Run("snyk-node testcase", func(t *testing.T) {
 		exampleOutput, err := os.ReadFile("./testdata/snyk-node_output.json")
 		require.NoError(t, err)
@@ -795,9 +797,10 @@ func Test_ParseOut(t *testing.T) {
 			expectedIssues[i].FindingInfo.DataSources = nil
 			actualIssues[i].FindingInfo.DataSources = nil
 		}
-		require.EqualExportedValues(t, expectedIssues, actualIssues)
 
+		require.EqualExportedValues(t, expectedIssues, actualIssues)
 	})
+
 	t.Run("codeql testcase", func(t *testing.T) {
 		exampleOutput, err := os.ReadFile("./testdata/code-ql.sarif.json")
 		require.NoError(t, err)
@@ -1096,9 +1099,10 @@ func Test_ParseOut(t *testing.T) {
 			expectedIssues[i].FindingInfo.DataSources = nil
 			actualIssues[i].FindingInfo.DataSources = nil
 		}
-		require.EqualExportedValues(t, expectedIssues, actualIssues)
 
+		require.EqualExportedValues(t, expectedIssues, actualIssues)
 	})
+
 	t.Run("semgrep testcase", func(t *testing.T) {
 		exampleOutput, err := os.ReadFile("./testdata/semgrep.sarif.json")
 		require.NoError(t, err)
@@ -1400,9 +1404,10 @@ func Test_ParseOut(t *testing.T) {
 			expectedIssues[i].FindingInfo.DataSources = nil
 			actualIssues[i].FindingInfo.DataSources = nil
 		}
-		require.EqualExportedValues(t, expectedIssues, actualIssues)
 
+		require.EqualExportedValues(t, expectedIssues, actualIssues)
 	})
+
 	t.Run("trivy testcase", func(t *testing.T) {
 		exampleOutput, err := os.ReadFile("./testdata/trivy_output.json")
 		require.NoError(t, err)
@@ -1619,6 +1624,7 @@ func Test_ParseOut(t *testing.T) {
 		require.EqualExportedValues(t, expectedIssues, actualIssues)
 
 	})
+
 	t.Run("zap testcase", func(t *testing.T) {
 		exampleOutput, err := os.ReadFile("./testdata/zap.sarif.json")
 		require.NoError(t, err)
@@ -1667,6 +1673,19 @@ func Test_ParseOut(t *testing.T) {
 		dataSource.Uri = &ocsffindinginfo.DataSource_URI{
 			UriSchema: ocsffindinginfo.DataSource_URI_SCHEMA_WEBSITE,
 			Path:      "/bodgeit/basket.jsp",
+		}
+		marshalledDataSource, err = protojson.Marshal(dataSource)
+		require.NoError(t, err)
+		marshalledDataSources = append(marshalledDataSources, string(marshalledDataSource))
+
+		dataSource.LocationData = &ocsffindinginfo.DataSource_FileFindingLocationData_{
+			FileFindingLocationData: &ocsffindinginfo.DataSource_FileFindingLocationData{
+				StartLine: 1,
+			},
+		}
+		dataSource.Uri = &ocsffindinginfo.DataSource_URI{
+			UriSchema: ocsffindinginfo.DataSource_URI_SCHEMA_WEBSITE,
+			Path:      "/",
 		}
 		marshalledDataSource, err = protojson.Marshal(dataSource)
 		require.NoError(t, err)
@@ -1862,11 +1881,73 @@ func Test_ParseOut(t *testing.T) {
 					},
 				},
 			},
+			{
+				ActivityId:   ocsf.VulnerabilityFinding_ACTIVITY_ID_CREATE,
+				ActivityName: utils.Ptr("ACTIVITY_ID_CREATE"),
+				CategoryName: utils.Ptr("CATEGORY_UID_FINDINGS"),
+				CategoryUid:  ocsf.VulnerabilityFinding_CATEGORY_UID_FINDINGS,
+				ClassName:    utils.Ptr("CLASS_UID_VULNERABILITY_FINDING"),
+				ClassUid:     ocsf.VulnerabilityFinding_CLASS_UID_VULNERABILITY_FINDING,
+				Confidence:   utils.Ptr("CONFIDENCE_ID_UNKNOWN"),
+				ConfidenceId: utils.Ptr(ocsf.VulnerabilityFinding_CONFIDENCE_ID_UNKNOWN),
+				Count:        utils.Ptr(int32(1)),
+				FindingInfo: &ocsf.FindingInfo{
+					CreatedTime:     utils.Ptr(now.Unix()),
+					CreatedTimeDt:   timestamppb.New(now),
+					DataSources:     []string{string(marshalledDataSources[3])},
+					Desc:            utils.Ptr("The original page results were successfully replicated using the expression [5-2] as the parameter value\nThe parameter value being modified was stripped from the HTML output for the purposes of the comparison."),
+					FirstSeenTime:   utils.Ptr(now.Unix()),
+					FirstSeenTimeDt: timestamppb.New(now),
+					LastSeenTime:    utils.Ptr(now.Unix()),
+					LastSeenTimeDt:  timestamppb.New(now),
+					ModifiedTime:    utils.Ptr(now.Unix()),
+					ModifiedTimeDt:  timestamppb.New(now),
+					ProductUid:      utils.Ptr("ZAP"),
+					Uid:             "40018",
+					Title:           "SQL Injection",
+				},
+				Message: utils.Ptr("The original page results were successfully replicated using the expression [5-2] as the parameter value\nThe parameter value being modified was stripped from the HTML output for the purposes of the comparison."),
+				Metadata: &ocsf.Metadata{
+					EventCode: utils.Ptr("40018"),
+					Product: &ocsf.Product{
+						Name: utils.Ptr("ZAP"),
+					},
+					Uid: utils.Ptr("9805b11f-5bd1-5ceb-af02-3b4e90613e90"),
+				},
+				Severity:   utils.Ptr("SEVERITY_ID_HIGH"),
+				SeverityId: ocsf.VulnerabilityFinding_SEVERITY_ID_HIGH,
+				StartTime:  utils.Ptr(now.Unix()),
+				StatusId:   utils.Ptr(ocsf.VulnerabilityFinding_STATUS_ID_NEW),
+				Status:     utils.Ptr("STATUS_ID_NEW"),
+				Time:       now.Unix(),
+				TimeDt:     timestamppb.New(now),
+				TypeName:   utils.Ptr("Create"),
+				TypeUid:    int64(200201),
+				Vulnerabilities: []*ocsf.Vulnerability{
+					{
+						Cwe: &ocsf.Cwe{
+							SrcUrl: utils.Ptr("https://cwe.mitre.org/data/definitions/89.html"),
+							Uid:    "89",
+						},
+						Desc:            utils.Ptr("The original page results were successfully replicated using the expression [5-2] as the parameter value\nThe parameter value being modified was stripped from the HTML output for the purposes of the comparison."),
+						FirstSeenTime:   utils.Ptr(now.Unix()),
+						FirstSeenTimeDt: timestamppb.New(now),
+						FixAvailable:    utils.Ptr(false),
+						IsFixAvailable:  utils.Ptr(false),
+						LastSeenTime:    utils.Ptr(now.Unix()),
+						LastSeenTimeDt:  timestamppb.New(now),
+						Severity:        utils.Ptr("SEVERITY_ID_HIGH"),
+						Title:           utils.Ptr("SQL Injection"),
+						VendorName:      utils.Ptr("ZAP"),
+					},
+				},
+			},
 		}
 		transformer, err := sariftransformer.NewTransformer(
 			&sarifOutput, "", clock, nil, true, dataSource,
 		)
 		require.NoError(t, err)
+
 		actualIssues, err := transformer.ToOCSF(context.Background())
 		require.NoError(t, err)
 		require.Equal(t, len(actualIssues), len(expectedIssues))
@@ -1886,8 +1967,8 @@ func Test_ParseOut(t *testing.T) {
 		}
 
 		require.EqualExportedValues(t, expectedIssues, actualIssues)
-
 	})
+
 	t.Run("snyk testcase with automated ecosystem detection", func(t *testing.T) {
 		exampleOutput, err := os.ReadFile("./testdata/snyk-node_output.json")
 		require.NoError(t, err)
@@ -2166,7 +2247,7 @@ func Test_ParseOut(t *testing.T) {
 			expectedIssues[i].FindingInfo.DataSources = nil
 			actualIssues[i].FindingInfo.DataSources = nil
 		}
-		require.EqualExportedValues(t, expectedIssues, actualIssues)
 
+		require.EqualExportedValues(t, expectedIssues, actualIssues)
 	})
 }

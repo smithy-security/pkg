@@ -176,6 +176,67 @@
                         },
                         "noResponseReceived": true
                     }
+                },
+                 {
+                    "level": "error",
+                    "locations": [
+                        {
+                            "physicalLocation": {
+                                "artifactLocation": {
+                                    "uri": "http:\/\/bodgeit.com:8080"
+                                },
+                                "region": {
+                                    "startLine": 1,
+                                    "snippet": {
+                                        "text": ""
+                                    }
+                                }
+                            },
+                            "properties": {
+                                "attack": "5-2"
+                            }
+                        }
+                    ],
+                    "message": {
+                        "text": "The original page results were successfully replicated using the expression [5-2] as the parameter value\nThe parameter value being modified was stripped from the HTML output for the purposes of the comparison."
+                    },
+                    "ruleId": "40018",
+                    "webRequest": {
+                        "protocol": "HTTP",
+                        "version": "1.1",
+                        "target": "http:\/\/bodgeit.com:8080\/bodgeit\/basket.jsp",
+                        "method": "POST",
+                        "headers": {
+                            "Cookie": "JSESSIONID=A26D9F5A3946F522400CBD3B6BD544BD; b_id=4",
+                            "cache-control": "no-cache",
+                            "content-length": "34",
+                            "content-type": "application\/x-www-form-urlencoded",
+                            "host": "bodgeit.com:8080",
+                            "pragma": "no-cache",
+                            "referer": "http:\/\/bodgeit.com:8080\/bodgeit\/product.jsp?prodid=3",
+                            "user-agent": "Mozilla\/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit\/537.36 (KHTML, like Gecko) Chrome\/131.0.0.0 Safari\/537.36"
+                        },
+                        "body": {
+                            "binary": "cHJvZHVjdGlkPTUtMiZwcmljZT00LjcmcXVhbnRpdHk9Mw=="
+                        }
+                    },
+                    "webResponse": {
+                        "statusCode": 500,
+                        "reasonPhrase": "",
+                        "protocol": "HTTP",
+                        "version": "1.1",
+                        "headers": {
+                            "Connection": "close",
+                            "Content-Language": "en",
+                            "Content-Length": "2707",
+                            "Content-Type": "text\/html;charset=utf-8",
+                            "Date": "Sun, 23 Feb 2025 15:22:21 GMT"
+                        },
+                        "body": {
+                            "text": "<!doctype html><html lang=\"en\"><head><title>HTTP Status 500 \u2013 Internal Server Error<\/title><style type=\"text\/css\">body {font-family:Tahoma,Arial,sans-serif;} h1, h2, h3, b {color:white;background-color:#525D76;} h1 {font-size:22px;} h2 {font-size:16px;} h3 {font-size:14px;} p {font-size:12px;} a {color:black;} .line {height:1px;background-color:#525D76;border:none;}<\/style><\/head><body><h1>HTTP Status 500 \u2013 Internal Server Error<\/h1><hr class=\"line\" \/><p><b>Type<\/b> Exception Report<\/p><p><b>Message<\/b> An exception occurred processing [\u0026#47;basket.jsp] at line [189]<\/p><p><b>Description<\/b> The server encountered an unexpected condition that prevented it from fulfilling the request.<\/p><p><b>Exception<\/b><\/p><pre>org.apache.jasper.JasperException: An exception occurred processing [\u0026#47;basket.jsp] at line [189]\n\n186: \t\t\t\tquantity += rs.getInt(\u0026quot;quantity\u0026quot;);\n187: \t\t\t\trs.close();\n188: \t\t\t\tstmt.close();\n189: \t\t\t\tstmt = conn.prepareStatement(\u0026quot;UPDATE BasketContents SET quantity = \u0026quot; + Integer.parseInt(quantity) + \n190: \t\t\t\t\t\t\u0026quot; WHERE basketid=\u0026quot; + basketId + \u0026quot; AND productid = \u0026quot; + productId);\n191: \t\t\t\tstmt.execute();\n192: \t\t\t\tif (Integer.parseInt(quantity) \u0026lt; 0) {\n\n\nStacktrace:\n\torg.apache.jasper.servlet.JspServletWrapper.handleJspException(JspServletWrapper.java:610)\n\torg.apache.jasper.servlet.JspServletWrapper.service(JspServletWrapper.java:499)\n\torg.apache.jasper.servlet.JspServlet.serviceJspFile(JspServlet.java:376)\n\torg.apache.jasper.servlet.JspServlet.service(JspServlet.java:324)\n\tjavax.servlet.http.HttpServlet.service(HttpServlet.java:623)\n\torg.apache.tomcat.websocket.server.WsFilter.doFilter(WsFilter.java:51)\n<\/pre><p><b>Root Cause<\/b><\/p><pre>java.lang.NumberFormatException: For input string: \u0026quot;3333333333\u0026quot;\n\tjava.base\u0026#47;java.lang.NumberFormatException.forInputString(NumberFormatException.java:67)\n\tjava.base\u0026#47;java.lang.Integer.parseInt(Integer.java:662)\n\tjava.base\u0026#47;java.lang.Integer.parseInt(Integer.java:778)\n\torg.apache.jsp.basket_jsp._jspService(basket_jsp.java:316)\n\torg.apache.jasper.runtime.HttpJspBase.service(HttpJspBase.java:67)\n\tjavax.servlet.http.HttpServlet.service(HttpServlet.java:623)\n\torg.apache.jasper.servlet.JspServletWrapper.service(JspServletWrapper.java:466)\n\torg.apache.jasper.servlet.JspServlet.serviceJspFile(JspServlet.java:376)\n\torg.apache.jasper.servlet.JspServlet.service(JspServlet.java:324)\n\tjavax.servlet.http.HttpServlet.service(HttpServlet.java:623)\n\torg.apache.tomcat.websocket.server.WsFilter.doFilter(WsFilter.java:51)\n<\/pre><p><b>Note<\/b> The full stack trace of the root cause is available in the server logs.<\/p><hr class=\"line\" \/><h3>Apache Tomcat\/9.0.98<\/h3><\/body><\/html>"
+                        },
+                        "noResponseReceived": true
+                    }
                 }
             ],
             "taxonomies": [
