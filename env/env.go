@@ -29,13 +29,13 @@ type (
 	}
 )
 
-var (
-	defaultEnvParseOptions = parseOpts{
+func defaultEnvParseOptions() *parseOpts {
+	return &parseOpts{
 		envLoader:      os.Getenv,
 		defaultOnError: false,
 		timeLayout:     time.RFC3339,
 	}
-)
+}
 
 // WithLoader allows overriding how env vars are loaded.
 //
@@ -68,7 +68,7 @@ func GetOrDefault[T Parseable](envVar string, defaultVal T, opts ...ParseOption)
 		return dest, errors.New("environment variable cannot be blank")
 	}
 
-	defaultOpts := &defaultEnvParseOptions
+	defaultOpts := defaultEnvParseOptions()
 	for _, opt := range opts {
 		if err := opt(defaultOpts); err != nil {
 			return dest, fmt.Errorf("option error: %w", err)
