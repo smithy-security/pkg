@@ -2251,3 +2251,96 @@ func Test_ParseOut(t *testing.T) {
 		require.EqualExportedValues(t, expectedIssues, actualIssues)
 	})
 }
+func Test_MergeDataSources_EcosystemFallback(t *testing.T) {
+	// Edge case: SARIF finding for container image, no ecosystem in SARIF, should fallback to datasource's OCI metadata PURL
+	sarifResult := sarif.SchemaJson{
+		Runs: []sarif.Run{
+			{
+				Results: []sarif.Result{
+					{
+						RuleId: utils.Ptr("CVE-2020-36048"),
+						Message: sarif.Message{
+							Text: utils.Ptr("Denial of Service (DoS) vulnerability in engine.io"),
+						},
+						Locations: []sarif.Location{
+							{
+								PhysicalLocation: &sarif.PhysicalLocation{
+									ArtifactLocation: &sarif.ArtifactLocation{
+										Uri: utils.Ptr("workspace/source-code/image.tar"),
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+	dataSource := &ocsffindinginfo.DataSource{
+		TargetType: ocsffindinginfo.DataSource_TARGET_TYPE_CONTAINER_IMAGE,
+		OciPackageMetadata: &ocsffindinginfo.DataSource_OCIPackageMetadata{
+			PackageUrl: "pkg:docker/ghcr.io/foo/image@v1.2.3",
+			Tag:        "v1.2.3",
+		},
+	}
+	transformer, err := sariftransformer.NewTransformer(&sarifResult, "", clockwork.NewFakeClock(), nil, false, dataSource)
+	require.NoError(t, err)
+	issues, err := transformer.ToOCSF(context.Background())
+	require.NoError(t, err)
+	require.Len(t, issues, 1)
+	ds := &ocsffindinginfo.DataSource{}
+	err = protojson.Unmarshal([]byte(issues[0].FindingInfo.DataSources[0]), ds)
+	require.NoError(t, err)
+	require.Equal(t, ds.TargetType, ocsffindinginfo.DataSource_TARGET_TYPE_CONTAINER_IMAGE)
+	require.Equal(t, ds.Uri.UriSchema, ocsffindinginfo.DataSource_URI_SCHEMA_PURL)
+	require.Equal(t, ds.OciPackageMetadata.PackageUrl, "pkg:docker/ghcr.io/foo/image@v1.2.3")
+}
+
+func Test_MergeDataSources_MissingMetadataError(t *testing.T) {
+	// Edge case: SARIF finding for container image, no ecosystem, no OCI metadata, should error
+	sarifResult := sarif.SchemaJson{
+		Runs: []sarif.Run{
+			{
+				Results: []sarif.Result{
+					{
+						RuleId: utils.Ptr("CVE-2020-36048"),
+						Message: sarif.Message{
+							Text: utils.Ptr("Denial of Service (DoS) vulnerability in engine.io"),
+						},
+						Locations: []sarif.Location{
+							{
+								PhysicalLocation: &sarif.PhysicalLocation{
+									ArtifactLocation: &sarif.ArtifactLocation{
+										Uri: utils.Ptr("OS%PKGs"),
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	// Instead of calling mergeDataSources directly, use the public ToOCSF method
+	dataSource := &ocsffindinginfo.DataSource{
+		TargetType: ocsffindinginfo.DataSource_TARGET_TYPE_CONTAINER_IMAGE,
+		OciPackageMetadata: &ocsffindinginfo.DataSource_OCIPackageMetadata{
+			Tag: "v1.2.3",
+		},
+	}
+
+	transformer, err := sariftransformer.NewTransformer(
+		&sarifResult,
+		"",
+		clockwork.NewFakeClock(),
+		nil,
+		false,
+		dataSource,
+	)
+	require.NoError(t, err)
+
+	_, err = transformer.ToOCSF(context.Background())
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "could not parse pURL based on the artifact location URI and no datasource provided")
+}
