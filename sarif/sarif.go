@@ -616,7 +616,24 @@ func (s *SarifTransformer) mergeDataSources(
 	case ocsffindinginfo.DataSource_TARGET_TYPE_CONTAINER_IMAGE:
 		purl, err := packageurl.FromString("pkg:" + s.findingsEcosystem + "/" + *location.PhysicalLocation.ArtifactLocation.Uri)
 		if err != nil {
-			return nil, errors.Errorf("failed to parse package url:'%s', %v", *location.PhysicalLocation.ArtifactLocation.Uri, err)
+			slog.Error("failed to parse artifact location pURL, falling back to datasource pURL",
+				slog.String("artifact_location_uri", *location.PhysicalLocation.ArtifactLocation.Uri),
+				slog.String("finding_ecosystem", s.findingsEcosystem),
+			)
+
+			if s.dataSource.OciPackageMetadata == nil || s.dataSource.OciPackageMetadata.PackageUrl == "" {
+				return nil, errors.Errorf(
+					"could not parse pURL based on the artifact location URI and no datasource provided: %w",
+					err,
+				)
+			}
+
+			slog.Info("falling back to datasource pURL, this will lead to findings pointing to the artifact itself as finding location")
+			var otherErr error
+			purl, otherErr = packageurl.FromString(s.dataSource.OciPackageMetadata.PackageUrl)
+			if otherErr != nil {
+				return nil, errors.Errorf("could not parse artifact location or datasource pURL: %w: %w", otherErr, err)
+			}
 		}
 
 		dataSource.Uri = &ocsffindinginfo.DataSource_URI{
