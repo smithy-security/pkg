@@ -451,42 +451,48 @@ func (s *SarifTransformer) mapAffected(res *sarif.Result) ([]*ocsf.AffectedCode,
 		if location.PhysicalLocation == nil {
 			continue
 		}
+
 		var (
-			ac = &ocsf.AffectedCode{
-				File: &ocsf.File{},
-			}
 			physicalLocation = location.PhysicalLocation
+			pkgType          = s.findingsEcosystem
+			ruleID           = ""
 		)
-		pkgType := s.findingsEcosystem
-		ruleID := ""
+
 		if res.RuleId != nil {
 			ruleID = *res.RuleId
 		} else if res.Rule != nil && res.Rule.Id != nil {
 			ruleID = *res.Rule.Id
 		}
+
 		if eco, ok := s.ruleToEcosystem[ruleID]; ok {
 			pkgType = eco
 		}
+
 		if physicalLocation.ArtifactLocation != nil && physicalLocation.ArtifactLocation.Uri != nil {
 			if p := s.detectPackageFromPhysicalLocation(*physicalLocation, pkgType); p != nil {
 				affectedPackages = append(affectedPackages, s.mapAffectedPackage(res.Fixes, *p))
 			} else if !s.isSnykURI(*location.PhysicalLocation.ArtifactLocation.Uri) {
 				// Snyk special case, they use the repo url with some weird replacement as the artifact location
-				ac.File.Name = *location.PhysicalLocation.ArtifactLocation.Uri
-				ac.File.Path = utils.Ptr(fmt.Sprintf("file://%s", *location.PhysicalLocation.ArtifactLocation.Uri))
+				ac := &ocsf.AffectedCode{
+					File: &ocsf.File{
+						Name: *location.PhysicalLocation.ArtifactLocation.Uri,
+						Path: utils.Ptr(fmt.Sprintf("file://%s", *location.PhysicalLocation.ArtifactLocation.Uri)),
+					},
+				}
+
+				if physicalLocation.Region != nil {
+					if location.PhysicalLocation.Region.StartLine != nil {
+						ac.StartLine = utils.Ptr(int32(*location.PhysicalLocation.Region.StartLine))
+					}
+					if location.PhysicalLocation.Region.EndLine != nil {
+						ac.EndLine = utils.Ptr(int32(*location.PhysicalLocation.Region.EndLine))
+					}
+				}
+
+				affectedCode = append(affectedCode, ac)
 			}
 		}
-		if physicalLocation.Region != nil {
-			if location.PhysicalLocation.Region.StartLine != nil {
-				ac.StartLine = utils.Ptr(int32(*location.PhysicalLocation.Region.StartLine))
-			}
-			if location.PhysicalLocation.Region.EndLine != nil {
-				ac.EndLine = utils.Ptr(int32(*location.PhysicalLocation.Region.EndLine))
-			}
-		}
-		if ac != (&ocsf.AffectedCode{}) {
-			affectedCode = append(affectedCode, ac)
-		}
+
 		for _, logicalLocation := range location.LogicalLocations {
 			if p := s.detectPackageFromLogicalLocation(logicalLocation, pkgType); p != nil {
 				affectedPackages = append(affectedPackages, s.mapAffectedPackage(res.Fixes, *p))
