@@ -590,12 +590,6 @@ func Test_ParseOut(t *testing.T) {
 				Status:     utils.Ptr("STATUS_ID_NEW"),
 				Vulnerabilities: []*ocsf.Vulnerability{
 					{
-						AffectedCode: []*ocsf.AffectedCode{
-							{
-								File:      &ocsf.File{},
-								StartLine: utils.Ptr(int32(1)),
-							},
-						},
 						AffectedPackages: []*ocsf.AffectedPackage{
 							{
 								Name:           "cookie",
@@ -665,12 +659,6 @@ func Test_ParseOut(t *testing.T) {
 				TypeUid:    int64(200201),
 				Vulnerabilities: []*ocsf.Vulnerability{
 					{
-						AffectedCode: []*ocsf.AffectedCode{
-							{
-								File:      &ocsf.File{},
-								StartLine: utils.Ptr(int32(1)),
-							},
-						},
 						AffectedPackages: []*ocsf.AffectedPackage{
 							{
 								Name:           "engine.io",
@@ -742,12 +730,6 @@ func Test_ParseOut(t *testing.T) {
 				TypeUid:    int64(200201),
 				Vulnerabilities: []*ocsf.Vulnerability{
 					{
-						AffectedCode: []*ocsf.AffectedCode{
-							{
-								File:      &ocsf.File{},
-								StartLine: utils.Ptr(int32(1)),
-							},
-						},
 						AffectedPackages: []*ocsf.AffectedPackage{
 							{
 								Name:           "engine.io",
@@ -1494,13 +1476,6 @@ func Test_ParseOut(t *testing.T) {
 				TypeUid:    int64(200201),
 				Vulnerabilities: []*ocsf.Vulnerability{
 					{
-						AffectedCode: []*ocsf.AffectedCode{
-							{
-								File:      &ocsf.File{},
-								StartLine: utils.Ptr(int32(1)),
-								EndLine:   utils.Ptr(int32(1)),
-							},
-						},
 						AffectedPackages: []*ocsf.AffectedPackage{
 							{
 								Name:           "image",
@@ -1569,13 +1544,6 @@ func Test_ParseOut(t *testing.T) {
 				TypeUid:    int64(200201),
 				Vulnerabilities: []*ocsf.Vulnerability{
 					{
-						AffectedCode: []*ocsf.AffectedCode{
-							{
-								File:      &ocsf.File{},
-								StartLine: utils.Ptr(int32(1)),
-								EndLine:   utils.Ptr(int32(1)),
-							},
-						},
 						AffectedPackages: []*ocsf.AffectedPackage{
 							{
 								Name:           "image",
@@ -2041,12 +2009,6 @@ func Test_ParseOut(t *testing.T) {
 				Status:     utils.Ptr("STATUS_ID_NEW"),
 				Vulnerabilities: []*ocsf.Vulnerability{
 					{
-						AffectedCode: []*ocsf.AffectedCode{
-							{
-								File:      &ocsf.File{},
-								StartLine: utils.Ptr(int32(1)),
-							},
-						},
 						AffectedPackages: []*ocsf.AffectedPackage{
 							{
 								Name:           "cookie",
@@ -2115,12 +2077,6 @@ func Test_ParseOut(t *testing.T) {
 				TypeUid:    int64(200201),
 				Vulnerabilities: []*ocsf.Vulnerability{
 					{
-						AffectedCode: []*ocsf.AffectedCode{
-							{
-								File:      &ocsf.File{},
-								StartLine: utils.Ptr(int32(1)),
-							},
-						},
 						AffectedPackages: []*ocsf.AffectedPackage{
 							{
 								Name:           "engine.io",
@@ -2192,12 +2148,6 @@ func Test_ParseOut(t *testing.T) {
 				TypeUid:    int64(200201),
 				Vulnerabilities: []*ocsf.Vulnerability{
 					{
-						AffectedCode: []*ocsf.AffectedCode{
-							{
-								File:      &ocsf.File{},
-								StartLine: utils.Ptr(int32(1)),
-							},
-						},
 						AffectedPackages: []*ocsf.AffectedPackage{
 							{
 								Name:           "engine.io",
