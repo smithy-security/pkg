@@ -573,26 +573,17 @@ func (s *SarifTransformer) mapTitleDesc(res *sarif.Result, ruleToTools map[strin
 		}
 	}
 	if s.richDescription {
-		backUPDescription := descr
-		richInfoAdded := false
-		descr = fmt.Sprintf("Original Description: %s", descr)
 		if rule.Help != nil {
-			if rule.Help.Text != "" {
-				richInfoAdded = true
-				descr = fmt.Sprintf("%s\n Help: %s", descr, rule.Help.Text)
+			if rule.Help.Text != "" && rule.Help.Text != descr {
+				descr = fmt.Sprintf("%s\n\n Help: %s", descr, rule.Help.Text)
 			} else if rule.Help.Markdown != nil && *rule.Help.Markdown != "" {
-				richInfoAdded = true
-				descr = fmt.Sprintf("%s\n Help: %s", descr, *rule.Help.Markdown)
+				descr = fmt.Sprintf("%s\n\n Help: %s", descr, *rule.Help.Markdown)
 			}
 		}
 		if rule.HelpUri != nil && *rule.HelpUri != "" {
-			richInfoAdded = true
-			descr = fmt.Sprintf("%s\n HelpUri: %s", descr, *rule.HelpUri)
+			descr = fmt.Sprintf("%s\n\n More info: %s", descr, *rule.HelpUri)
 		}
-		if !richInfoAdded {
-			// remove the "Original Description:" part since the whole description is the original
-			descr = backUPDescription
-		}
+
 	}
 	return
 }
