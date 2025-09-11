@@ -490,7 +490,10 @@ func Test_ParseOut(t *testing.T) {
 			},
 		}
 		transformer, err := sariftransformer.NewTransformer(
-			&sarifOutput, "", clock, nil, true, datasource,
+			sariftransformer.WithScanResult(&sarifOutput),
+			sariftransformer.WithClock(clock),
+			sariftransformer.WithRichDescription(),
+			sariftransformer.WithDataSource(datasource),
 		)
 		require.NoError(t, err)
 		actualIssues, err := transformer.ToOCSF(context.Background())
@@ -759,7 +762,11 @@ func Test_ParseOut(t *testing.T) {
 			},
 		}
 		transformer, err := sariftransformer.NewTransformer(
-			&sarifOutput, "npm", clock, nil, true, dataSource,
+			sariftransformer.WithScanResult(&sarifOutput),
+			sariftransformer.WithFindingsEcosystem("npm"),
+			sariftransformer.WithClock(clock),
+			sariftransformer.WithRichDescription(),
+			sariftransformer.WithDataSource(dataSource),
 		)
 		require.NoError(t, err)
 		actualIssues, err := transformer.ToOCSF(context.Background())
@@ -1060,7 +1067,9 @@ func Test_ParseOut(t *testing.T) {
 		}
 
 		transformer, err := sariftransformer.NewTransformer(
-			&sarifOutput, "", clock, nil, true, dataSource,
+			sariftransformer.WithScanResult(&sarifOutput),
+			sariftransformer.WithClock(clock),
+			sariftransformer.WithDataSource(dataSource),
 		)
 		require.NoError(t, err)
 
@@ -1367,7 +1376,10 @@ func Test_ParseOut(t *testing.T) {
 			},
 		}
 		transformer, err := sariftransformer.NewTransformer(
-			&sarifOutput, "", clock, nil, true, dataSource,
+			sariftransformer.WithScanResult(&sarifOutput),
+			sariftransformer.WithClock(clock),
+			sariftransformer.WithRichDescription(),
+			sariftransformer.WithDataSource(dataSource),
 		)
 		require.NoError(t, err)
 		actualIssues, err := transformer.ToOCSF(context.Background())
@@ -1570,7 +1582,11 @@ func Test_ParseOut(t *testing.T) {
 			},
 		}
 		transformer, err := sariftransformer.NewTransformer(
-			&sarifOutput, "docker", clock, nil, true, dataSource,
+			sariftransformer.WithScanResult(&sarifOutput),
+			sariftransformer.WithFindingsEcosystem("docker"),
+			sariftransformer.WithClock(clock),
+			sariftransformer.WithRichDescription(),
+			sariftransformer.WithDataSource(dataSource),
 		)
 		require.NoError(t, err)
 		actualIssues, err := transformer.ToOCSF(context.Background())
@@ -1912,7 +1928,10 @@ func Test_ParseOut(t *testing.T) {
 			},
 		}
 		transformer, err := sariftransformer.NewTransformer(
-			&sarifOutput, "", clock, nil, true, dataSource,
+			sariftransformer.WithScanResult(&sarifOutput),
+			sariftransformer.WithClock(clock),
+			sariftransformer.WithRichDescription(),
+			sariftransformer.WithDataSource(dataSource),
 		)
 		require.NoError(t, err)
 
@@ -2177,7 +2196,10 @@ func Test_ParseOut(t *testing.T) {
 			},
 		}
 		transformer, err := sariftransformer.NewTransformer(
-			&sarifOutput, "", clock, nil, true, dataSource,
+			sariftransformer.WithScanResult(&sarifOutput),
+			sariftransformer.WithClock(clock),
+			sariftransformer.WithRichDescription(),
+			sariftransformer.WithDataSource(dataSource),
 		)
 		require.NoError(t, err)
 		actualIssues, err := transformer.ToOCSF(context.Background())
