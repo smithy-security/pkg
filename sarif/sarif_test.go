@@ -490,7 +490,7 @@ func Test_ParseOut(t *testing.T) {
 			},
 		}
 		transformer, err := sariftransformer.NewTransformer(
-			&sarifOutput, "", clock, nil, true, datasource,
+			&sarifOutput, "", clock, nil, true, datasource, "/source-code/workspace/",
 		)
 		require.NoError(t, err)
 		actualIssues, err := transformer.ToOCSF(context.Background())
@@ -759,7 +759,7 @@ func Test_ParseOut(t *testing.T) {
 			},
 		}
 		transformer, err := sariftransformer.NewTransformer(
-			&sarifOutput, "npm", clock, nil, true, dataSource,
+			&sarifOutput, "npm", clock, nil, true, dataSource, "/source-code/workspace/",
 		)
 		require.NoError(t, err)
 		actualIssues, err := transformer.ToOCSF(context.Background())
@@ -1060,7 +1060,7 @@ func Test_ParseOut(t *testing.T) {
 		}
 
 		transformer, err := sariftransformer.NewTransformer(
-			&sarifOutput, "", clock, nil, true, dataSource,
+			&sarifOutput, "", clock, nil, true, dataSource, "/source-code/workspace/",
 		)
 		require.NoError(t, err)
 
@@ -1367,7 +1367,7 @@ func Test_ParseOut(t *testing.T) {
 			},
 		}
 		transformer, err := sariftransformer.NewTransformer(
-			&sarifOutput, "", clock, nil, true, dataSource,
+			&sarifOutput, "", clock, nil, true, dataSource, "/source-code/workspace/",
 		)
 		require.NoError(t, err)
 		actualIssues, err := transformer.ToOCSF(context.Background())
@@ -1570,7 +1570,7 @@ func Test_ParseOut(t *testing.T) {
 			},
 		}
 		transformer, err := sariftransformer.NewTransformer(
-			&sarifOutput, "docker", clock, nil, true, dataSource,
+			&sarifOutput, "docker", clock, nil, true, dataSource, "/source-code/workspace/",
 		)
 		require.NoError(t, err)
 		actualIssues, err := transformer.ToOCSF(context.Background())
@@ -1912,7 +1912,7 @@ func Test_ParseOut(t *testing.T) {
 			},
 		}
 		transformer, err := sariftransformer.NewTransformer(
-			&sarifOutput, "", clock, nil, true, dataSource,
+			&sarifOutput, "", clock, nil, true, dataSource, "/source-code/workspace/",
 		)
 		require.NoError(t, err)
 
@@ -2177,7 +2177,7 @@ func Test_ParseOut(t *testing.T) {
 			},
 		}
 		transformer, err := sariftransformer.NewTransformer(
-			&sarifOutput, "", clock, nil, true, dataSource,
+			&sarifOutput, "", clock, nil, true, dataSource, "/source-code/workspace/",
 		)
 		require.NoError(t, err)
 		actualIssues, err := transformer.ToOCSF(context.Background())
@@ -2193,6 +2193,283 @@ func Test_ParseOut(t *testing.T) {
 				protojson.Unmarshal([]byte(d), &expectedDataSource)
 				protojson.Unmarshal([]byte(actualIssues[i].FindingInfo.DataSources[j]), &actualDatasource)
 				require.EqualExportedValuesf(t, &expectedDataSource, &actualDatasource, "unequal datasource for finding %d", i)
+			}
+			expectedIssues[i].FindingInfo.DataSources = nil
+			actualIssues[i].FindingInfo.DataSources = nil
+		}
+
+		require.EqualExportedValues(t, expectedIssues, actualIssues)
+	})
+	t.Run("osv-scanner testcase", func(t *testing.T) {
+		exampleOutput, err := os.ReadFile("./testdata/osv-scanner.sarif.json")
+		require.NoError(t, err)
+
+		var sarifOutput sarif.SchemaJson
+		require.NoError(t, json.Unmarshal(exampleOutput, &sarifOutput))
+		marshalledDataSources := []string{}
+
+		// datasource 0
+		datasource := &ocsffindinginfo.DataSource{
+			TargetType: ocsffindinginfo.DataSource_TARGET_TYPE_REPOSITORY,
+			Uri: &ocsffindinginfo.DataSource_URI{
+				UriSchema: ocsffindinginfo.DataSource_URI_SCHEMA_FILE,
+				Path:      "file://requirements.txt",
+			},
+			SourceCodeMetadata: &ocsffindinginfo.DataSource_SourceCodeMetadata{
+				RepositoryUrl: "github.com/foo/bar",
+				Reference:     "main",
+			},
+		}
+		marshalledDataSource, err := protojson.Marshal(datasource)
+		require.NoError(t, err)
+
+		marshalledDataSources = append(marshalledDataSources, string(marshalledDataSource))
+
+		// datasource 1
+		datasource.Uri.Path = "file:///requirements.txt"
+		marshalledDataSource, err = protojson.Marshal(datasource)
+		marshalledDataSources = append(marshalledDataSources, string(marshalledDataSource))
+		require.NoError(t, err)
+
+		// datasource 2
+		datasource.Uri.Path = "file://requirements.txt"
+		marshalledDataSource, err = protojson.Marshal(datasource)
+		marshalledDataSources = append(marshalledDataSources, string(marshalledDataSource))
+		require.NoError(t, err)
+
+		// reset for the test
+		datasource.LocationData = nil
+		clock := clockwork.NewFakeClockAt(staticNow)
+		now := staticNow
+		expectedIssues := []*ocsf.VulnerabilityFinding{
+			{
+				ActivityId:   ocsf.VulnerabilityFinding_ACTIVITY_ID_CREATE,
+				ActivityName: utils.Ptr("ACTIVITY_ID_CREATE"),
+				CategoryName: utils.Ptr("CATEGORY_UID_FINDINGS"),
+				CategoryUid:  ocsf.VulnerabilityFinding_CATEGORY_UID_FINDINGS,
+				ClassName:    utils.Ptr("CLASS_UID_VULNERABILITY_FINDING"),
+				ClassUid:     ocsf.VulnerabilityFinding_CLASS_UID_VULNERABILITY_FINDING,
+				Confidence:   utils.Ptr("CONFIDENCE_ID_UNKNOWN"),
+				ConfidenceId: utils.Ptr(ocsf.VulnerabilityFinding_CONFIDENCE_ID_UNKNOWN),
+				Count:        utils.Ptr(int32(1)),
+				FindingInfo: &ocsf.FindingInfo{
+					CreatedTime:     utils.Ptr(now.Unix()),
+					CreatedTimeDt:   timestamppb.New(now),
+					DataSources:     []string{string(marshalledDataSources[0])},
+					Desc:            utils.Ptr("Original Description: PyYAML 5.1 through 5.1.2 has insufficient restrictions on the load and load_all functions because of a class deserialization issue, e.g., Popen is a class in the subprocess module. NOTE: this issue exists because of an incomplete fix for CVE-2017-18342.\n Help: **Your dependency is vulnerable to [CVE-2019-20477](https://osv.dev/list?q=CVE-2019-20477)**\n(Also published as: [PYSEC-2020-176](https://osv.dev/vulnerability/PYSEC-2020-176), [GHSA-3pqx-4fqf-j49f](https://osv.dev/vulnerability/GHSA-3pqx-4fqf-j49f), ).\n\n## [PYSEC-2020-176](https://osv.dev/vulnerability/PYSEC-2020-176)\n\n<details>\n<summary>Details</summary>\n\n> PyYAML 5.1 through 5.1.2 has insufficient restrictions on the load and load_all functions because of a class deserialization issue, e.g., Popen is a class in the subprocess module. NOTE: this issue exists because of an incomplete fix for CVE-2017-18342.\n\n</details>\n\n## [GHSA-3pqx-4fqf-j49f](https://osv.dev/vulnerability/GHSA-3pqx-4fqf-j49f)\n\n<details>\n<summary>Details</summary>\n\n> PyYAML 5.1 through 5.1.2 has insufficient restrictions on the load and load_all functions because of a class deserialization issue, e.g., Popen is a class in the subprocess module. NOTE: this issue exists because of an incomplete fix for CVE-2017-18342.\n\n</details>\n\n---\n\n### Affected Packages\n\n| Source | Package Name | Package Version |\n| --- | --- | --- |\n| lockfile:/workspace/source-code/requirements.txt | pyyaml | 5.1.2 |\n\n## Remediation\n\nTo fix these vulnerabilities, update the vulnerabilities past the listed fixed versions below.\n\n### Fixed Versions\n\n| Vulnerability ID | Package Name | Fixed Version |\n| --- | --- | --- |\n| GHSA-3pqx-4fqf-j49f | pyyaml | 5.2 |\n| PYSEC-2020-176 | pyyaml | 5.2b1 |\n\nIf you believe these vulnerabilities do not affect your code and wish to ignore them, add them to the ignore list in an\n`osv-scanner.toml` file located in the same directory as the lockfile containing the vulnerable dependency.\n\nSee the format and more options in our documentation here: https://google.github.io/osv-scanner/configuration/\n\nAdd or append these values to the following config files to ignore this vulnerability:\n\n`/workspace/source-code/osv-scanner.toml`\n\n```\n[[IgnoredVulns]]\nid = \"CVE-2019-20477\"\nreason = \"Your reason for ignoring this vulnerability\"\n```\n"),
+					FirstSeenTime:   utils.Ptr(now.Unix()),
+					FirstSeenTimeDt: timestamppb.New(now),
+					LastSeenTime:    utils.Ptr(now.Unix()),
+					LastSeenTimeDt:  timestamppb.New(now),
+					ModifiedTime:    utils.Ptr(now.Unix()),
+					ModifiedTimeDt:  timestamppb.New(now),
+					ProductUid:      utils.Ptr("osv-scanner"),
+					Uid:             "CVE-2019-20477",
+					Title:           "CVE-2019-20477: Deserialization of Untrusted Data in PyYAML",
+				},
+				Message: utils.Ptr("Original Description: PyYAML 5.1 through 5.1.2 has insufficient restrictions on the load and load_all functions because of a class deserialization issue, e.g., Popen is a class in the subprocess module. NOTE: this issue exists because of an incomplete fix for CVE-2017-18342.\n Help: **Your dependency is vulnerable to [CVE-2019-20477](https://osv.dev/list?q=CVE-2019-20477)**\n(Also published as: [PYSEC-2020-176](https://osv.dev/vulnerability/PYSEC-2020-176), [GHSA-3pqx-4fqf-j49f](https://osv.dev/vulnerability/GHSA-3pqx-4fqf-j49f), ).\n\n## [PYSEC-2020-176](https://osv.dev/vulnerability/PYSEC-2020-176)\n\n<details>\n<summary>Details</summary>\n\n> PyYAML 5.1 through 5.1.2 has insufficient restrictions on the load and load_all functions because of a class deserialization issue, e.g., Popen is a class in the subprocess module. NOTE: this issue exists because of an incomplete fix for CVE-2017-18342.\n\n</details>\n\n## [GHSA-3pqx-4fqf-j49f](https://osv.dev/vulnerability/GHSA-3pqx-4fqf-j49f)\n\n<details>\n<summary>Details</summary>\n\n> PyYAML 5.1 through 5.1.2 has insufficient restrictions on the load and load_all functions because of a class deserialization issue, e.g., Popen is a class in the subprocess module. NOTE: this issue exists because of an incomplete fix for CVE-2017-18342.\n\n</details>\n\n---\n\n### Affected Packages\n\n| Source | Package Name | Package Version |\n| --- | --- | --- |\n| lockfile:/workspace/source-code/requirements.txt | pyyaml | 5.1.2 |\n\n## Remediation\n\nTo fix these vulnerabilities, update the vulnerabilities past the listed fixed versions below.\n\n### Fixed Versions\n\n| Vulnerability ID | Package Name | Fixed Version |\n| --- | --- | --- |\n| GHSA-3pqx-4fqf-j49f | pyyaml | 5.2 |\n| PYSEC-2020-176 | pyyaml | 5.2b1 |\n\nIf you believe these vulnerabilities do not affect your code and wish to ignore them, add them to the ignore list in an\n`osv-scanner.toml` file located in the same directory as the lockfile containing the vulnerable dependency.\n\nSee the format and more options in our documentation here: https://google.github.io/osv-scanner/configuration/\n\nAdd or append these values to the following config files to ignore this vulnerability:\n\n`/workspace/source-code/osv-scanner.toml`\n\n```\n[[IgnoredVulns]]\nid = \"CVE-2019-20477\"\nreason = \"Your reason for ignoring this vulnerability\"\n```\n"),
+				Metadata: &ocsf.Metadata{
+					EventCode: utils.Ptr("CVE-2019-20477"),
+					Product: &ocsf.Product{
+						Name: utils.Ptr("osv-scanner"),
+					},
+					Uid: utils.Ptr("e59cb884-75c6-5795-8e6e-55b398625dca"),
+				},
+				Severity:   utils.Ptr("SEVERITY_ID_MEDIUM"),
+				SeverityId: ocsf.VulnerabilityFinding_SEVERITY_ID_MEDIUM,
+				StartTime:  utils.Ptr(now.Unix()),
+				StatusId:   utils.Ptr(ocsf.VulnerabilityFinding_STATUS_ID_NEW),
+				Status:     utils.Ptr("STATUS_ID_NEW"),
+				Time:       now.Unix(),
+				TimeDt:     timestamppb.New(now),
+				TypeName:   utils.Ptr("Create"),
+				TypeUid:    int64(200201),
+				Vulnerabilities: []*ocsf.Vulnerability{
+					{
+						AffectedCode: []*ocsf.AffectedCode{
+							{
+								File: &ocsf.File{
+									Name: "requirements.txt",
+									Path: utils.Ptr("file://requirements.txt"),
+								},
+							},
+						},
+						Cve: &ocsf.Cve{
+							Desc: utils.Ptr("PyYAML 5.1 through 5.1.2 has insufficient restrictions on the load and load_all functions because of a class deserialization issue, e.g., Popen is a class in the subprocess module. NOTE: this issue exists because of an incomplete fix for CVE-2017-18342."),
+							Uid:  "CVE-2019-20477",
+						},
+						Desc:            utils.Ptr("Original Description: PyYAML 5.1 through 5.1.2 has insufficient restrictions on the load and load_all functions because of a class deserialization issue, e.g., Popen is a class in the subprocess module. NOTE: this issue exists because of an incomplete fix for CVE-2017-18342.\n Help: **Your dependency is vulnerable to [CVE-2019-20477](https://osv.dev/list?q=CVE-2019-20477)**\n(Also published as: [PYSEC-2020-176](https://osv.dev/vulnerability/PYSEC-2020-176), [GHSA-3pqx-4fqf-j49f](https://osv.dev/vulnerability/GHSA-3pqx-4fqf-j49f), ).\n\n## [PYSEC-2020-176](https://osv.dev/vulnerability/PYSEC-2020-176)\n\n<details>\n<summary>Details</summary>\n\n> PyYAML 5.1 through 5.1.2 has insufficient restrictions on the load and load_all functions because of a class deserialization issue, e.g., Popen is a class in the subprocess module. NOTE: this issue exists because of an incomplete fix for CVE-2017-18342.\n\n</details>\n\n## [GHSA-3pqx-4fqf-j49f](https://osv.dev/vulnerability/GHSA-3pqx-4fqf-j49f)\n\n<details>\n<summary>Details</summary>\n\n> PyYAML 5.1 through 5.1.2 has insufficient restrictions on the load and load_all functions because of a class deserialization issue, e.g., Popen is a class in the subprocess module. NOTE: this issue exists because of an incomplete fix for CVE-2017-18342.\n\n</details>\n\n---\n\n### Affected Packages\n\n| Source | Package Name | Package Version |\n| --- | --- | --- |\n| lockfile:/workspace/source-code/requirements.txt | pyyaml | 5.1.2 |\n\n## Remediation\n\nTo fix these vulnerabilities, update the vulnerabilities past the listed fixed versions below.\n\n### Fixed Versions\n\n| Vulnerability ID | Package Name | Fixed Version |\n| --- | --- | --- |\n| GHSA-3pqx-4fqf-j49f | pyyaml | 5.2 |\n| PYSEC-2020-176 | pyyaml | 5.2b1 |\n\nIf you believe these vulnerabilities do not affect your code and wish to ignore them, add them to the ignore list in an\n`osv-scanner.toml` file located in the same directory as the lockfile containing the vulnerable dependency.\n\nSee the format and more options in our documentation here: https://google.github.io/osv-scanner/configuration/\n\nAdd or append these values to the following config files to ignore this vulnerability:\n\n`/workspace/source-code/osv-scanner.toml`\n\n```\n[[IgnoredVulns]]\nid = \"CVE-2019-20477\"\nreason = \"Your reason for ignoring this vulnerability\"\n```\n"),
+						FirstSeenTime:   utils.Ptr(now.Unix()),
+						FirstSeenTimeDt: timestamppb.New(now),
+						FixAvailable:    utils.Ptr(false),
+						IsFixAvailable:  utils.Ptr(false),
+						LastSeenTime:    utils.Ptr(now.Unix()),
+						LastSeenTimeDt:  timestamppb.New(now),
+						Severity:        utils.Ptr("SEVERITY_ID_MEDIUM"),
+						Title:           utils.Ptr("CVE-2019-20477: Deserialization of Untrusted Data in PyYAML"),
+						VendorName:      utils.Ptr("osv-scanner"),
+					},
+				},
+			},
+			{
+				ActivityId:   ocsf.VulnerabilityFinding_ACTIVITY_ID_CREATE,
+				ActivityName: utils.Ptr("ACTIVITY_ID_CREATE"),
+				CategoryName: utils.Ptr("CATEGORY_UID_FINDINGS"),
+				CategoryUid:  ocsf.VulnerabilityFinding_CATEGORY_UID_FINDINGS,
+				ClassName:    utils.Ptr("CLASS_UID_VULNERABILITY_FINDING"),
+				ClassUid:     ocsf.VulnerabilityFinding_CLASS_UID_VULNERABILITY_FINDING,
+				Confidence:   utils.Ptr("CONFIDENCE_ID_UNKNOWN"),
+				ConfidenceId: utils.Ptr(ocsf.VulnerabilityFinding_CONFIDENCE_ID_UNKNOWN),
+				Count:        utils.Ptr(int32(1)),
+				FindingInfo: &ocsf.FindingInfo{
+					CreatedTime:     utils.Ptr(now.Unix()),
+					CreatedTimeDt:   timestamppb.New(now),
+					DataSources:     []string{string(marshalledDataSources[1])},
+					Desc:            utils.Ptr("Original Description: A vulnerability was discovered in the PyYAML library in versions before 5.3.1, where it is susceptible to arbitrary code execution when it processes untrusted YAML files through the full_load method or with the FullLoader loader. Applications that use the library to process untrusted input may be vulnerable to this flaw. An attacker could use this flaw to execute arbitrary code on the system by abusing the python/object/new constructor.\n Help: **Your dependency is vulnerable to [CVE-2020-1747](https://osv.dev/list?q=CVE-2020-1747)**\n(Also published as: [PYSEC-2020-96](https://osv.dev/vulnerability/PYSEC-2020-96), [GHSA-6757-jp84-gxfx](https://osv.dev/vulnerability/GHSA-6757-jp84-gxfx), ).\n\n## [PYSEC-2020-96](https://osv.dev/vulnerability/PYSEC-2020-96)\n\n<details>\n<summary>Details</summary>\n\n> A vulnerability was discovered in the PyYAML library in versions before 5.3.1, where it is susceptible to arbitrary code execution when it processes untrusted YAML files through the full_load method or with the FullLoader loader. Applications that use the library to process untrusted input may be vulnerable to this flaw. An attacker could use this flaw to execute arbitrary code on the system by abusing the python/object/new constructor.\n\n</details>\n\n## [GHSA-6757-jp84-gxfx](https://osv.dev/vulnerability/GHSA-6757-jp84-gxfx)\n\n<details>\n<summary>Details</summary>\n\n> A vulnerability was discovered in the PyYAML library in versions before 5.3.1, where it is susceptible to arbitrary code execution when it processes untrusted YAML files through the full_load method or with the FullLoader loader. Applications that use the library to process untrusted input may be vulnerable to this flaw. An attacker could use this flaw to execute arbitrary code on the system by abusing the python/object/new constructor.\n\n</details>\n\n---\n\n### Affected Packages\n\n| Source | Package Name | Package Version |\n| --- | --- | --- |\n| lockfile:/workspace/source-code/requirements.txt | pyyaml | 5.1.2 |\n\n## Remediation\n\nTo fix these vulnerabilities, update the vulnerabilities past the listed fixed versions below.\n\n### Fixed Versions\n\n| Vulnerability ID | Package Name | Fixed Version |\n| --- | --- | --- |\n| GHSA-6757-jp84-gxfx | pyyaml | 5.3.1 |\n| PYSEC-2020-96 | pyyaml | 5.3.1 |\n\nIf you believe these vulnerabilities do not affect your code and wish to ignore them, add them to the ignore list in an\n`osv-scanner.toml` file located in the same directory as the lockfile containing the vulnerable dependency.\n\nSee the format and more options in our documentation here: https://google.github.io/osv-scanner/configuration/\n\nAdd or append these values to the following config files to ignore this vulnerability:\n\n`/workspace/source-code/osv-scanner.toml`\n\n```\n[[IgnoredVulns]]\nid = \"CVE-2020-1747\"\nreason = \"Your reason for ignoring this vulnerability\"\n```\n"),
+					FirstSeenTime:   utils.Ptr(now.Unix()),
+					FirstSeenTimeDt: timestamppb.New(now),
+					LastSeenTime:    utils.Ptr(now.Unix()),
+					LastSeenTimeDt:  timestamppb.New(now),
+					ModifiedTime:    utils.Ptr(now.Unix()),
+					ModifiedTimeDt:  timestamppb.New(now),
+					ProductUid:      utils.Ptr("osv-scanner"),
+					Uid:             "CVE-2020-1747",
+					Title:           "CVE-2020-1747: Improper Input Validation in PyYAML",
+				},
+				Message: utils.Ptr("Original Description: A vulnerability was discovered in the PyYAML library in versions before 5.3.1, where it is susceptible to arbitrary code execution when it processes untrusted YAML files through the full_load method or with the FullLoader loader. Applications that use the library to process untrusted input may be vulnerable to this flaw. An attacker could use this flaw to execute arbitrary code on the system by abusing the python/object/new constructor.\n Help: **Your dependency is vulnerable to [CVE-2020-1747](https://osv.dev/list?q=CVE-2020-1747)**\n(Also published as: [PYSEC-2020-96](https://osv.dev/vulnerability/PYSEC-2020-96), [GHSA-6757-jp84-gxfx](https://osv.dev/vulnerability/GHSA-6757-jp84-gxfx), ).\n\n## [PYSEC-2020-96](https://osv.dev/vulnerability/PYSEC-2020-96)\n\n<details>\n<summary>Details</summary>\n\n> A vulnerability was discovered in the PyYAML library in versions before 5.3.1, where it is susceptible to arbitrary code execution when it processes untrusted YAML files through the full_load method or with the FullLoader loader. Applications that use the library to process untrusted input may be vulnerable to this flaw. An attacker could use this flaw to execute arbitrary code on the system by abusing the python/object/new constructor.\n\n</details>\n\n## [GHSA-6757-jp84-gxfx](https://osv.dev/vulnerability/GHSA-6757-jp84-gxfx)\n\n<details>\n<summary>Details</summary>\n\n> A vulnerability was discovered in the PyYAML library in versions before 5.3.1, where it is susceptible to arbitrary code execution when it processes untrusted YAML files through the full_load method or with the FullLoader loader. Applications that use the library to process untrusted input may be vulnerable to this flaw. An attacker could use this flaw to execute arbitrary code on the system by abusing the python/object/new constructor.\n\n</details>\n\n---\n\n### Affected Packages\n\n| Source | Package Name | Package Version |\n| --- | --- | --- |\n| lockfile:/workspace/source-code/requirements.txt | pyyaml | 5.1.2 |\n\n## Remediation\n\nTo fix these vulnerabilities, update the vulnerabilities past the listed fixed versions below.\n\n### Fixed Versions\n\n| Vulnerability ID | Package Name | Fixed Version |\n| --- | --- | --- |\n| GHSA-6757-jp84-gxfx | pyyaml | 5.3.1 |\n| PYSEC-2020-96 | pyyaml | 5.3.1 |\n\nIf you believe these vulnerabilities do not affect your code and wish to ignore them, add them to the ignore list in an\n`osv-scanner.toml` file located in the same directory as the lockfile containing the vulnerable dependency.\n\nSee the format and more options in our documentation here: https://google.github.io/osv-scanner/configuration/\n\nAdd or append these values to the following config files to ignore this vulnerability:\n\n`/workspace/source-code/osv-scanner.toml`\n\n```\n[[IgnoredVulns]]\nid = \"CVE-2020-1747\"\nreason = \"Your reason for ignoring this vulnerability\"\n```\n"),
+				Metadata: &ocsf.Metadata{
+					EventCode: utils.Ptr("CVE-2020-1747"),
+					Product: &ocsf.Product{
+						Name: utils.Ptr("osv-scanner"),
+					},
+					Uid: utils.Ptr("32d939f5-d7a4-50dd-8d86-3bf3c2bafd6e"),
+				},
+				Severity:   utils.Ptr("SEVERITY_ID_MEDIUM"),
+				SeverityId: ocsf.VulnerabilityFinding_SEVERITY_ID_MEDIUM,
+				StartTime:  utils.Ptr(now.Unix()),
+				StatusId:   utils.Ptr(ocsf.VulnerabilityFinding_STATUS_ID_NEW),
+				Status:     utils.Ptr("STATUS_ID_NEW"),
+				Time:       now.Unix(),
+				TimeDt:     timestamppb.New(now),
+				TypeName:   utils.Ptr("Create"),
+				TypeUid:    int64(200201),
+				Vulnerabilities: []*ocsf.Vulnerability{
+					{
+						AffectedCode: []*ocsf.AffectedCode{
+							{
+								File: &ocsf.File{
+
+									Name: "/requirements.txt",
+									Path: utils.Ptr("file:///requirements.txt"),
+								},
+							},
+						},
+						Cve: &ocsf.Cve{
+							Desc: utils.Ptr("A vulnerability was discovered in the PyYAML library in versions before 5.3.1, where it is susceptible to arbitrary code execution when it processes untrusted YAML files through the full_load method or with the FullLoader loader. Applications that use the library to process untrusted input may be vulnerable to this flaw. An attacker could use this flaw to execute arbitrary code on the system by abusing the python/object/new constructor."),
+							Uid:  "CVE-2020-1747",
+						},
+						Desc:            utils.Ptr("Original Description: A vulnerability was discovered in the PyYAML library in versions before 5.3.1, where it is susceptible to arbitrary code execution when it processes untrusted YAML files through the full_load method or with the FullLoader loader. Applications that use the library to process untrusted input may be vulnerable to this flaw. An attacker could use this flaw to execute arbitrary code on the system by abusing the python/object/new constructor.\n Help: **Your dependency is vulnerable to [CVE-2020-1747](https://osv.dev/list?q=CVE-2020-1747)**\n(Also published as: [PYSEC-2020-96](https://osv.dev/vulnerability/PYSEC-2020-96), [GHSA-6757-jp84-gxfx](https://osv.dev/vulnerability/GHSA-6757-jp84-gxfx), ).\n\n## [PYSEC-2020-96](https://osv.dev/vulnerability/PYSEC-2020-96)\n\n<details>\n<summary>Details</summary>\n\n> A vulnerability was discovered in the PyYAML library in versions before 5.3.1, where it is susceptible to arbitrary code execution when it processes untrusted YAML files through the full_load method or with the FullLoader loader. Applications that use the library to process untrusted input may be vulnerable to this flaw. An attacker could use this flaw to execute arbitrary code on the system by abusing the python/object/new constructor.\n\n</details>\n\n## [GHSA-6757-jp84-gxfx](https://osv.dev/vulnerability/GHSA-6757-jp84-gxfx)\n\n<details>\n<summary>Details</summary>\n\n> A vulnerability was discovered in the PyYAML library in versions before 5.3.1, where it is susceptible to arbitrary code execution when it processes untrusted YAML files through the full_load method or with the FullLoader loader. Applications that use the library to process untrusted input may be vulnerable to this flaw. An attacker could use this flaw to execute arbitrary code on the system by abusing the python/object/new constructor.\n\n</details>\n\n---\n\n### Affected Packages\n\n| Source | Package Name | Package Version |\n| --- | --- | --- |\n| lockfile:/workspace/source-code/requirements.txt | pyyaml | 5.1.2 |\n\n## Remediation\n\nTo fix these vulnerabilities, update the vulnerabilities past the listed fixed versions below.\n\n### Fixed Versions\n\n| Vulnerability ID | Package Name | Fixed Version |\n| --- | --- | --- |\n| GHSA-6757-jp84-gxfx | pyyaml | 5.3.1 |\n| PYSEC-2020-96 | pyyaml | 5.3.1 |\n\nIf you believe these vulnerabilities do not affect your code and wish to ignore them, add them to the ignore list in an\n`osv-scanner.toml` file located in the same directory as the lockfile containing the vulnerable dependency.\n\nSee the format and more options in our documentation here: https://google.github.io/osv-scanner/configuration/\n\nAdd or append these values to the following config files to ignore this vulnerability:\n\n`/workspace/source-code/osv-scanner.toml`\n\n```\n[[IgnoredVulns]]\nid = \"CVE-2020-1747\"\nreason = \"Your reason for ignoring this vulnerability\"\n```\n"),
+						FirstSeenTime:   utils.Ptr(now.Unix()),
+						FirstSeenTimeDt: timestamppb.New(now),
+						FixAvailable:    utils.Ptr(false),
+						IsFixAvailable:  utils.Ptr(false),
+						LastSeenTime:    utils.Ptr(now.Unix()),
+						LastSeenTimeDt:  timestamppb.New(now),
+						Severity:        utils.Ptr("SEVERITY_ID_MEDIUM"),
+						Title:           utils.Ptr("CVE-2020-1747: Improper Input Validation in PyYAML"),
+						VendorName:      utils.Ptr("osv-scanner"),
+					},
+				},
+			},
+			{
+				ActivityId:   ocsf.VulnerabilityFinding_ACTIVITY_ID_CREATE,
+				ActivityName: utils.Ptr("ACTIVITY_ID_CREATE"),
+				CategoryName: utils.Ptr("CATEGORY_UID_FINDINGS"),
+				CategoryUid:  ocsf.VulnerabilityFinding_CATEGORY_UID_FINDINGS,
+				ClassName:    utils.Ptr("CLASS_UID_VULNERABILITY_FINDING"),
+				ClassUid:     ocsf.VulnerabilityFinding_CLASS_UID_VULNERABILITY_FINDING,
+				Confidence:   utils.Ptr("CONFIDENCE_ID_UNKNOWN"),
+				ConfidenceId: utils.Ptr(ocsf.VulnerabilityFinding_CONFIDENCE_ID_UNKNOWN),
+				Count:        utils.Ptr(int32(1)),
+				FindingInfo: &ocsf.FindingInfo{
+					CreatedTime:     utils.Ptr(now.Unix()),
+					CreatedTimeDt:   timestamppb.New(now),
+					DataSources:     []string{string(marshalledDataSources[2])},
+					Desc:            utils.Ptr("Original Description: A vulnerability was discovered in the PyYAML library in versions before 5.4, where it is susceptible to arbitrary code execution when it processes untrusted YAML files through the full_load method or with the FullLoader loader. Applications that use the library to process untrusted input may be vulnerable to this flaw. This flaw allows an attacker to execute arbitrary code on the system by abusing the python/object/new constructor. This flaw is due to an incomplete fix for CVE-2020-1747.\n Help: **Your dependency is vulnerable to [CVE-2020-14343](https://osv.dev/list?q=CVE-2020-14343)**\n(Also published as: [PYSEC-2021-142](https://osv.dev/vulnerability/PYSEC-2021-142), [GHSA-8q59-q68h-6hv4](https://osv.dev/vulnerability/GHSA-8q59-q68h-6hv4), ).\n\n## [PYSEC-2021-142](https://osv.dev/vulnerability/PYSEC-2021-142)\n\n<details>\n<summary>Details</summary>\n\n> A vulnerability was discovered in the PyYAML library in versions before 5.4, where it is susceptible to arbitrary code execution when it processes untrusted YAML files through the full_load method or with the FullLoader loader. Applications that use the library to process untrusted input may be vulnerable to this flaw. This flaw allows an attacker to execute arbitrary code on the system by abusing the python/object/new constructor. This flaw is due to an incomplete fix for CVE-2020-1747.\n\n</details>\n\n## [GHSA-8q59-q68h-6hv4](https://osv.dev/vulnerability/GHSA-8q59-q68h-6hv4)\n\n<details>\n<summary>Details</summary>\n\n> A vulnerability was discovered in the PyYAML library in versions before 5.4, where it is susceptible to arbitrary code execution when it processes untrusted YAML files through the full_load method or with the FullLoader loader. Applications that use the library to process untrusted input may be vulnerable to this flaw. This flaw allows an attacker to execute arbitrary code on the system by abusing the python/object/new constructor. This flaw is due to an incomplete fix for CVE-2020-1747.\n\n</details>\n\n---\n\n### Affected Packages\n\n| Source | Package Name | Package Version |\n| --- | --- | --- |\n| lockfile:/workspace/source-code/requirements.txt | pyyaml | 5.1.2 |\n\n## Remediation\n\nTo fix these vulnerabilities, update the vulnerabilities past the listed fixed versions below.\n\n### Fixed Versions\n\n| Vulnerability ID | Package Name | Fixed Version |\n| --- | --- | --- |\n| GHSA-8q59-q68h-6hv4 | pyyaml | 5.4 |\n| PYSEC-2021-142 | pyyaml | 5.4 |\n\nIf you believe these vulnerabilities do not affect your code and wish to ignore them, add them to the ignore list in an\n`osv-scanner.toml` file located in the same directory as the lockfile containing the vulnerable dependency.\n\nSee the format and more options in our documentation here: https://google.github.io/osv-scanner/configuration/\n\nAdd or append these values to the following config files to ignore this vulnerability:\n\n`/workspace/source-code/osv-scanner.toml`\n\n```\n[[IgnoredVulns]]\nid = \"CVE-2020-14343\"\nreason = \"Your reason for ignoring this vulnerability\"\n```\n"),
+					FirstSeenTime:   utils.Ptr(now.Unix()),
+					FirstSeenTimeDt: timestamppb.New(now),
+					LastSeenTime:    utils.Ptr(now.Unix()),
+					LastSeenTimeDt:  timestamppb.New(now),
+					ModifiedTime:    utils.Ptr(now.Unix()),
+					ModifiedTimeDt:  timestamppb.New(now),
+					ProductUid:      utils.Ptr("osv-scanner"),
+					Uid:             "CVE-2020-14343",
+					Title:           "CVE-2020-14343: Improper Input Validation in PyYAML",
+				},
+				Message: utils.Ptr("Original Description: A vulnerability was discovered in the PyYAML library in versions before 5.4, where it is susceptible to arbitrary code execution when it processes untrusted YAML files through the full_load method or with the FullLoader loader. Applications that use the library to process untrusted input may be vulnerable to this flaw. This flaw allows an attacker to execute arbitrary code on the system by abusing the python/object/new constructor. This flaw is due to an incomplete fix for CVE-2020-1747.\n Help: **Your dependency is vulnerable to [CVE-2020-14343](https://osv.dev/list?q=CVE-2020-14343)**\n(Also published as: [PYSEC-2021-142](https://osv.dev/vulnerability/PYSEC-2021-142), [GHSA-8q59-q68h-6hv4](https://osv.dev/vulnerability/GHSA-8q59-q68h-6hv4), ).\n\n## [PYSEC-2021-142](https://osv.dev/vulnerability/PYSEC-2021-142)\n\n<details>\n<summary>Details</summary>\n\n> A vulnerability was discovered in the PyYAML library in versions before 5.4, where it is susceptible to arbitrary code execution when it processes untrusted YAML files through the full_load method or with the FullLoader loader. Applications that use the library to process untrusted input may be vulnerable to this flaw. This flaw allows an attacker to execute arbitrary code on the system by abusing the python/object/new constructor. This flaw is due to an incomplete fix for CVE-2020-1747.\n\n</details>\n\n## [GHSA-8q59-q68h-6hv4](https://osv.dev/vulnerability/GHSA-8q59-q68h-6hv4)\n\n<details>\n<summary>Details</summary>\n\n> A vulnerability was discovered in the PyYAML library in versions before 5.4, where it is susceptible to arbitrary code execution when it processes untrusted YAML files through the full_load method or with the FullLoader loader. Applications that use the library to process untrusted input may be vulnerable to this flaw. This flaw allows an attacker to execute arbitrary code on the system by abusing the python/object/new constructor. This flaw is due to an incomplete fix for CVE-2020-1747.\n\n</details>\n\n---\n\n### Affected Packages\n\n| Source | Package Name | Package Version |\n| --- | --- | --- |\n| lockfile:/workspace/source-code/requirements.txt | pyyaml | 5.1.2 |\n\n## Remediation\n\nTo fix these vulnerabilities, update the vulnerabilities past the listed fixed versions below.\n\n### Fixed Versions\n\n| Vulnerability ID | Package Name | Fixed Version |\n| --- | --- | --- |\n| GHSA-8q59-q68h-6hv4 | pyyaml | 5.4 |\n| PYSEC-2021-142 | pyyaml | 5.4 |\n\nIf you believe these vulnerabilities do not affect your code and wish to ignore them, add them to the ignore list in an\n`osv-scanner.toml` file located in the same directory as the lockfile containing the vulnerable dependency.\n\nSee the format and more options in our documentation here: https://google.github.io/osv-scanner/configuration/\n\nAdd or append these values to the following config files to ignore this vulnerability:\n\n`/workspace/source-code/osv-scanner.toml`\n\n```\n[[IgnoredVulns]]\nid = \"CVE-2020-14343\"\nreason = \"Your reason for ignoring this vulnerability\"\n```\n"),
+				Metadata: &ocsf.Metadata{
+					EventCode: utils.Ptr("CVE-2020-14343"),
+					Product: &ocsf.Product{
+						Name: utils.Ptr("osv-scanner"),
+					},
+					Uid: utils.Ptr("431f42ce-67ee-5a31-b0a6-e79ea090d1ca"),
+				},
+				Severity:   utils.Ptr("SEVERITY_ID_MEDIUM"),
+				SeverityId: ocsf.VulnerabilityFinding_SEVERITY_ID_MEDIUM,
+				StartTime:  utils.Ptr(now.Unix()),
+				StatusId:   utils.Ptr(ocsf.VulnerabilityFinding_STATUS_ID_NEW),
+				Status:     utils.Ptr("STATUS_ID_NEW"),
+				Time:       now.Unix(),
+				TimeDt:     timestamppb.New(now),
+				TypeName:   utils.Ptr("Create"),
+				TypeUid:    int64(200201),
+				Vulnerabilities: []*ocsf.Vulnerability{
+					{
+						AffectedCode: []*ocsf.AffectedCode{
+							{
+								File: &ocsf.File{
+
+									Name: "requirements.txt",
+									Path: utils.Ptr("file://requirements.txt"),
+								},
+							},
+						},
+						Cve: &ocsf.Cve{
+							Desc: utils.Ptr("A vulnerability was discovered in the PyYAML library in versions before 5.4, where it is susceptible to arbitrary code execution when it processes untrusted YAML files through the full_load method or with the FullLoader loader. Applications that use the library to process untrusted input may be vulnerable to this flaw. This flaw allows an attacker to execute arbitrary code on the system by abusing the python/object/new constructor. This flaw is due to an incomplete fix for CVE-2020-1747."),
+							Uid:  "CVE-2020-14343",
+						},
+						AffectedPackages: nil,
+						Desc:             utils.Ptr("Original Description: A vulnerability was discovered in the PyYAML library in versions before 5.4, where it is susceptible to arbitrary code execution when it processes untrusted YAML files through the full_load method or with the FullLoader loader. Applications that use the library to process untrusted input may be vulnerable to this flaw. This flaw allows an attacker to execute arbitrary code on the system by abusing the python/object/new constructor. This flaw is due to an incomplete fix for CVE-2020-1747.\n Help: **Your dependency is vulnerable to [CVE-2020-14343](https://osv.dev/list?q=CVE-2020-14343)**\n(Also published as: [PYSEC-2021-142](https://osv.dev/vulnerability/PYSEC-2021-142), [GHSA-8q59-q68h-6hv4](https://osv.dev/vulnerability/GHSA-8q59-q68h-6hv4), ).\n\n## [PYSEC-2021-142](https://osv.dev/vulnerability/PYSEC-2021-142)\n\n<details>\n<summary>Details</summary>\n\n> A vulnerability was discovered in the PyYAML library in versions before 5.4, where it is susceptible to arbitrary code execution when it processes untrusted YAML files through the full_load method or with the FullLoader loader. Applications that use the library to process untrusted input may be vulnerable to this flaw. This flaw allows an attacker to execute arbitrary code on the system by abusing the python/object/new constructor. This flaw is due to an incomplete fix for CVE-2020-1747.\n\n</details>\n\n## [GHSA-8q59-q68h-6hv4](https://osv.dev/vulnerability/GHSA-8q59-q68h-6hv4)\n\n<details>\n<summary>Details</summary>\n\n> A vulnerability was discovered in the PyYAML library in versions before 5.4, where it is susceptible to arbitrary code execution when it processes untrusted YAML files through the full_load method or with the FullLoader loader. Applications that use the library to process untrusted input may be vulnerable to this flaw. This flaw allows an attacker to execute arbitrary code on the system by abusing the python/object/new constructor. This flaw is due to an incomplete fix for CVE-2020-1747.\n\n</details>\n\n---\n\n### Affected Packages\n\n| Source | Package Name | Package Version |\n| --- | --- | --- |\n| lockfile:/workspace/source-code/requirements.txt | pyyaml | 5.1.2 |\n\n## Remediation\n\nTo fix these vulnerabilities, update the vulnerabilities past the listed fixed versions below.\n\n### Fixed Versions\n\n| Vulnerability ID | Package Name | Fixed Version |\n| --- | --- | --- |\n| GHSA-8q59-q68h-6hv4 | pyyaml | 5.4 |\n| PYSEC-2021-142 | pyyaml | 5.4 |\n\nIf you believe these vulnerabilities do not affect your code and wish to ignore them, add them to the ignore list in an\n`osv-scanner.toml` file located in the same directory as the lockfile containing the vulnerable dependency.\n\nSee the format and more options in our documentation here: https://google.github.io/osv-scanner/configuration/\n\nAdd or append these values to the following config files to ignore this vulnerability:\n\n`/workspace/source-code/osv-scanner.toml`\n\n```\n[[IgnoredVulns]]\nid = \"CVE-2020-14343\"\nreason = \"Your reason for ignoring this vulnerability\"\n```\n"),
+						FirstSeenTime:    utils.Ptr(now.Unix()),
+						FirstSeenTimeDt:  timestamppb.New(now),
+						FixAvailable:     utils.Ptr(false),
+						IsFixAvailable:   utils.Ptr(false),
+						LastSeenTime:     utils.Ptr(now.Unix()),
+						LastSeenTimeDt:   timestamppb.New(now),
+						Severity:         utils.Ptr("SEVERITY_ID_MEDIUM"),
+						Title:            utils.Ptr("CVE-2020-14343: Improper Input Validation in PyYAML"),
+						VendorName:       utils.Ptr("osv-scanner"),
+					},
+				},
+			},
+		}
+		transformer, err := sariftransformer.NewTransformer(
+			&sarifOutput, "", clock, nil, true, datasource, "/workspace/source-code/",
+		)
+		require.NoError(t, err)
+		actualIssues, err := transformer.ToOCSF(context.Background())
+
+		require.NoError(t, err)
+		require.Equal(t, len(actualIssues), len(expectedIssues))
+		// handle datasource differently see https://github.com/golang/protobuf/issues/1121
+		for i, e := range expectedIssues {
+			var expectedDataSource, actualDatasource ocsffindinginfo.DataSource
+			require.Equal(t, len(e.FindingInfo.DataSources), len(actualIssues[i].FindingInfo.DataSources))
+
+			for j, d := range e.GetFindingInfo().DataSources {
+				protojson.Unmarshal([]byte(d), &expectedDataSource)
+				protojson.Unmarshal([]byte(actualIssues[i].FindingInfo.DataSources[j]), &actualDatasource)
+				require.EqualExportedValuesf(t, &expectedDataSource, &actualDatasource, "datasource for finding index %d is not equal", i)
 			}
 			expectedIssues[i].FindingInfo.DataSources = nil
 			actualIssues[i].FindingInfo.DataSources = nil
@@ -2233,7 +2510,7 @@ func Test_MergeDataSources_EcosystemFallback(t *testing.T) {
 			Tag:        "v1.2.3",
 		},
 	}
-	transformer, err := sariftransformer.NewTransformer(&sarifResult, "", clockwork.NewFakeClock(), nil, false, dataSource)
+	transformer, err := sariftransformer.NewTransformer(&sarifResult, "", clockwork.NewFakeClock(), nil, false, dataSource, "/source-code/workspace/")
 	require.NoError(t, err)
 	issues, err := transformer.ToOCSF(context.Background())
 	require.NoError(t, err)
@@ -2287,10 +2564,12 @@ func Test_MergeDataSources_MissingMetadataError(t *testing.T) {
 		nil,
 		false,
 		dataSource,
+		"/source-code/workspace/",
 	)
 	require.NoError(t, err)
 
 	_, err = transformer.ToOCSF(context.Background())
 	require.Error(t, err)
-	require.Contains(t, err.Error(), "could not parse pURL based on the artifact location URI and no datasource provided")
+	require.Contains(t, err.Error(),
+		"could not map affected code/packages: could not construct path for affected code: could not parse final path file://OS%PKGs as url: parse \"file://OS%PKGs\": invalid URL escape \"%PK\"")
 }
