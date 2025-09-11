@@ -32,6 +32,10 @@ type SarifTransformer struct {
 	ruleToEcosystem   map[string]string
 	richDescription   bool
 	dataSource        *ocsffindinginfo.DataSource
+
+	// the root path to which all file paths should be relative to, will be ultimately removed from findings,
+	// this is used to handle CI/CD cases where findings have absolute path to the filesystem as opposed to project root.
+	workspacePath string
 }
 
 var typeName = map[int64]string{
@@ -76,6 +80,7 @@ func NewTransformer(
 	guidProvider StableUUIDProvider,
 	richDescription bool,
 	dataSource *ocsffindinginfo.DataSource,
+	workspacePath string,
 ) (*SarifTransformer, error) {
 	if scanResult == nil {
 		return nil, errors.Errorf("method 'NewTransformer called with nil scanResult")
@@ -97,6 +102,11 @@ func NewTransformer(
 		return nil, errors.Errorf("invalid data source provider: %w", err)
 	}
 
+	cleanedWorkspacePath := filepath.Clean(workspacePath)
+	if !filepath.IsAbs(cleanedWorkspacePath) {
+		return nil, errors.Errorf("workspace path must be an absolute path")
+	}
+
 	return &SarifTransformer{
 		clock:             clock,
 		sarifResult:       *scanResult,
@@ -106,6 +116,7 @@ func NewTransformer(
 		taxasByCWEID:      make(map[string]sarif.ReportingDescriptor),
 		richDescription:   richDescription,
 		dataSource:        dataSource,
+		workspacePath:     cleanedWorkspacePath,
 	}, nil
 }
 
@@ -161,7 +172,10 @@ func (s *SarifTransformer) transformToOCSF(
 	res *sarif.Result,
 ) (*ocsf.VulnerabilityFinding, error) {
 	slog.Debug("parsing run from", slog.String("toolname", toolName))
-	affectedCode, affectedPackages := s.mapAffected(res)
+	affectedCode, affectedPackages, err := s.mapAffected(res)
+	if err != nil {
+		return nil, errors.Errorf("could not map affected code/packages: %w", err)
+	}
 
 	var (
 		ruleID           *string
@@ -346,6 +360,75 @@ func (s *SarifTransformer) isSnykURI(uri string) bool {
 	return strings.HasPrefix(uri, "https_//")
 }
 
+func (s *SarifTransformer) relativePath(path string) (string, error) {
+	if s.workspacePath == "" {
+		return path, nil
+	}
+
+	if !strings.HasPrefix(path, s.workspacePath) {
+		return "", errors.Errorf(
+			"%s: result is not inside expected directory: %s",
+			path,
+			s.workspacePath,
+		)
+	}
+
+	relativePath, err := filepath.Rel(s.workspacePath, path)
+	if err != nil {
+		return "", errors.Errorf(
+			"could not get relative path from path %s using prefix %q",
+			path,
+			s.workspacePath,
+		)
+	}
+
+	return relativePath, nil
+}
+
+// normalisePath will take a given path and construct a file url pointing to
+// the file relative to the workspacePath
+func (s *SarifTransformer) normalisePath(
+	path string,
+	uriBaseId *string,
+) (*ocsf.File, error) {
+	parsedPath, err := url.Parse(path)
+	if err != nil {
+		return nil, errors.Errorf("%s: could not parse path: %w", path, err)
+	}
+
+	cleanedPath := filepath.Clean(
+		filepath.Join(parsedPath.Host, parsedPath.Path),
+	)
+
+	if uriBaseId != nil {
+		slog.Info("path has a non-nil uriBaseId", slog.String("uri_base_id", *uriBaseId))
+	}
+
+	switch {
+	case uriBaseId != nil && strings.ToLower(*uriBaseId) == "%srcroot%" && filepath.IsAbs(cleanedPath):
+		// this should be a relative path and it's not, so we should return an error
+		return nil, errors.Errorf("%s: path was expected to be relative but it's absolute", cleanedPath)
+	case s.workspacePath != "" && filepath.IsAbs(cleanedPath):
+		relativePath, err := s.relativePath(cleanedPath)
+		if err != nil {
+			return nil, err
+		}
+
+		cleanedPath = relativePath
+	}
+
+	// validate that we created a URL correctly
+	finalPath := "file://" + cleanedPath
+	if _, err := url.Parse(finalPath); err != nil {
+		return nil, errors.Errorf("could not parse final path %s as url: %w", finalPath, err)
+	}
+
+	return &ocsf.File{
+		Name: cleanedPath,
+		Path: utils.Ptr(finalPath),
+	}, nil
+}
+
 func (s *SarifTransformer) mapAffectedPackage(fixes []sarif.Fix, purl packageurl.PackageURL) *ocsf.AffectedPackage {
 	affectedPackage := &ocsf.AffectedPackage{
 		Purl:           utils.Ptr(purl.String()),
@@ -440,11 +523,11 @@ func (s *SarifTransformer) rulesToEcosystem() map[string]string {
 	return result
 }
 
-func (s *SarifTransformer) mapAffected(res *sarif.Result) ([]*ocsf.AffectedCode, []*ocsf.AffectedPackage) {
+func (s *SarifTransformer) mapAffected(res *sarif.Result) ([]*ocsf.AffectedCode, []*ocsf.AffectedPackage, error) {
 	var affectedCode []*ocsf.AffectedCode
 	var affectedPackages []*ocsf.AffectedPackage
 	if s.dataSource.TargetType == ocsffindinginfo.DataSource_TARGET_TYPE_WEBSITE { // websites do not carry code or package info
-		return nil, nil
+		return nil, nil, nil
 	}
 
 	for _, location := range res.Locations {
@@ -469,15 +552,21 @@ func (s *SarifTransformer) mapAffected(res *sarif.Result) ([]*ocsf.AffectedCode,
 		}
 
 		if physicalLocation.ArtifactLocation != nil && physicalLocation.ArtifactLocation.Uri != nil {
+			uri := *location.PhysicalLocation.ArtifactLocation.Uri
 			if p := s.detectPackageFromPhysicalLocation(*physicalLocation, pkgType); p != nil {
 				affectedPackages = append(affectedPackages, s.mapAffectedPackage(res.Fixes, *p))
-			} else if !s.isSnykURI(*location.PhysicalLocation.ArtifactLocation.Uri) {
 				// Snyk special case, they use the repo url with some weird replacement as the artifact location
+			} else if !s.isSnykURI(uri) {
+				finalFile, err := s.normalisePath(
+					uri,
+					location.PhysicalLocation.ArtifactLocation.UriBaseId,
+				)
+				if err != nil {
+					return nil, nil, errors.Errorf("could not construct path for affected code: %w", err)
+				}
+
 				ac := &ocsf.AffectedCode{
-					File: &ocsf.File{
-						Name: *location.PhysicalLocation.ArtifactLocation.Uri,
-						Path: utils.Ptr(fmt.Sprintf("file://%s", *location.PhysicalLocation.ArtifactLocation.Uri)),
-					},
+					File: finalFile,
 				}
 
 				if physicalLocation.Region != nil {
@@ -500,7 +589,7 @@ func (s *SarifTransformer) mapAffected(res *sarif.Result) ([]*ocsf.AffectedCode,
 		}
 	}
 
-	return affectedCode, affectedPackages
+	return affectedCode, affectedPackages, nil
 }
 
 func (s *SarifTransformer) mapSeverity(sarifResLevel sarif.ResultLevel) ocsf.VulnerabilityFinding_SeverityId {
@@ -648,9 +737,17 @@ func (s *SarifTransformer) mergeDataSources(
 		if s.isSnykURI(*location.PhysicalLocation.ArtifactLocation.Uri) {
 			dataSource.Uri = nil
 		} else {
+			finalPath, err := s.normalisePath(
+				*location.PhysicalLocation.ArtifactLocation.Uri,
+				location.PhysicalLocation.ArtifactLocation.UriBaseId,
+			)
+			if err != nil {
+				return nil, errors.Errorf("could not construct path for repository data source: %w", err)
+			}
+
 			dataSource.Uri = &ocsffindinginfo.DataSource_URI{
 				UriSchema: ocsffindinginfo.DataSource_URI_SCHEMA_FILE,
-				Path:      "file://" + filepath.Clean(*location.PhysicalLocation.ArtifactLocation.Uri),
+				Path:      *finalPath.Path,
 			}
 		}
 
