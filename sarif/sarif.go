@@ -69,46 +69,102 @@ func validateDataSource(dataSource *ocsffindinginfo.DataSource) error {
 	return nil
 }
 
-func NewTransformer(
-	scanResult *sarif.SchemaJson,
-	findingsEcosystem string,
-	clock clockwork.Clock,
-	guidProvider StableUUIDProvider,
-	richDescription bool,
-	dataSource *ocsffindinginfo.DataSource,
-) (*SarifTransformer, error) {
-	if scanResult == nil {
-		return nil, errors.Errorf("method 'NewTransformer called with nil scanResult")
+type Config struct {
+	ScanResult        *sarif.SchemaJson           // required, the SARIF scan result to transform
+	FindingsEcosystem string                      // optional, if the SARIF doesn't contain package ecosystem info, this will be used as a hint to create the PURL for affected packages, valid example value is e.g. npm/docker/pypi
+	Clock             clockwork.Clock             // optional, if not provided, a real clock will be used
+	GuidProvider      StableUUIDProvider          // optional, if not provided, a basic stable UUID provider will be created
+	RichDescription   bool                        // optional, if true, the description field of the finding will contain more information about the finding if available
+	DataSource        *ocsffindinginfo.DataSource // required, the data source info to attach to each finding
+}
+
+type TransformerOption func(*Config)
+
+// WithScanResult sets the SARIF scan result to transform
+func WithScanResult(scanResult *sarif.SchemaJson) TransformerOption {
+	return func(cfg *Config) {
+		cfg.ScanResult = scanResult
+	}
+}
+
+// WithFindingsEcosystem sets the ecosystem of the findings, e.g. npm/docker/pypi
+// This is used to create the PURL for affected packages if the SARIF doesn't contain package
+func WithFindingsEcosystem(findingsEcosystem string) TransformerOption {
+	return func(cfg *Config) {
+		cfg.FindingsEcosystem = findingsEcosystem
+	}
+}
+
+// WithClock sets the clock to use for timestamps
+func WithClock(clock clockwork.Clock) TransformerOption {
+	return func(cfg *Config) {
+		cfg.Clock = clock
+	}
+}
+
+// WithGuidProvider sets the stable UUID provider to use for generating finding UIDs
+func WithGuidProvider(guidProvider StableUUIDProvider) TransformerOption {
+	return func(cfg *Config) {
+		cfg.GuidProvider = guidProvider
+	}
+}
+
+// WithRichDescription enables rich description in the finding if available
+func WithRichDescription() TransformerOption {
+	return func(cfg *Config) {
+		cfg.RichDescription = true
+	}
+}
+
+// WithDataSource sets the data source info to attach to each finding
+func WithDataSource(dataSource *ocsffindinginfo.DataSource) TransformerOption {
+	return func(cfg *Config) {
+		cfg.DataSource = dataSource
+	}
+}
+
+// NewTransformer creates a new SarifTransformer with the provided options
+// ScanResult and DataSource are required options, if not provided, an error will be returned
+func NewTransformer(options ...TransformerOption) (*SarifTransformer, error) {
+	cfg := &Config{}
+	for _, opt := range options {
+		opt(cfg)
 	}
 
-	if clock == nil {
-		clock = clockwork.NewRealClock()
+	if cfg.ScanResult == nil {
+		return nil, errors.Errorf("scan results must be provided, received nil")
 	}
 
-	if utils.IsNil(guidProvider) {
+	if cfg.Clock == nil {
+		cfg.Clock = clockwork.NewRealClock()
+	}
+
+	if utils.IsNil(cfg.GuidProvider) {
 		var err error
-		guidProvider, err = NewBasicStableUUIDProvider()
+		cfg.GuidProvider, err = NewBasicStableUUIDProvider()
 		if err != nil {
 			return nil, errors.Errorf("could not bootstrap stable UUID provider: %w", err)
 		}
 	}
 
-	if err := validateDataSource(dataSource); err != nil {
+	if err := validateDataSource(cfg.DataSource); err != nil {
 		return nil, errors.Errorf("invalid data source provider: %w", err)
 	}
 
 	return &SarifTransformer{
-		clock:             clock,
-		sarifResult:       *scanResult,
-		findingsEcosystem: findingsEcosystem,
-		guidProvider:      guidProvider,
+		clock:             cfg.Clock,
+		sarifResult:       *cfg.ScanResult,
+		findingsEcosystem: cfg.FindingsEcosystem,
+		guidProvider:      cfg.GuidProvider,
 		ruleToTools:       make(map[string]sarif.ReportingDescriptor),
 		taxasByCWEID:      make(map[string]sarif.ReportingDescriptor),
-		richDescription:   richDescription,
-		dataSource:        dataSource,
+		richDescription:   cfg.RichDescription,
+		dataSource:        cfg.DataSource,
 	}, nil
 }
 
+// ToOCSF transforms the SARIF scan result to a list of OCSF VulnerabilityFindings
+// It returns the list of findings and an error if any occurred during the transformation
 func (s *SarifTransformer) ToOCSF(ctx context.Context) ([]*ocsf.VulnerabilityFinding, error) {
 	slog.Debug(
 		"working with",
