@@ -46,6 +46,15 @@ func TestRoundTripper(t *testing.T) {
 				Body:       io.NopCloser(bytes.NewBufferString(body)),
 			}
 		}
+		makeResponseWithHeader = func(statusCode int, headerName, headerVal, body string) *http.Response {
+			resp := &http.Response{
+				Header:     http.Header{},
+				StatusCode: statusCode,
+				Body:       io.NopCloser(bytes.NewBufferString(body)),
+			}
+			resp.Header.Add(headerName, headerVal)
+			return resp
+		}
 		zeroDelayRetry = func(uint) int { return 0 }
 	)
 
@@ -168,6 +177,30 @@ func TestRoundTripper(t *testing.T) {
 			errors:         []error{nil, nil, nil},
 			maxRetries:     3,
 			retryFunc:      func(uint) int { return 0 },
+			expectedStatus: http.StatusOK,
+			expectedBody:   "success",
+			expectError:    false,
+		},
+		{
+			name: "response has retry after header",
+			responses: []*http.Response{
+				makeResponseWithHeader(http.StatusTooManyRequests, "Retry-After", "1", "rate limited 1"),
+				makeResponse(http.StatusOK, "success"),
+			},
+			errors:         []error{nil, nil, nil},
+			maxRetries:     3,
+			expectedStatus: http.StatusOK,
+			expectedBody:   "success",
+			expectError:    false,
+		},
+		{
+			name: "response has wrong retry after header",
+			responses: []*http.Response{
+				makeResponseWithHeader(http.StatusTooManyRequests, "Retry-After", "bla", "rate limited 1"),
+				makeResponse(http.StatusOK, "success"),
+			},
+			errors:         []error{nil, nil, nil},
+			maxRetries:     3,
 			expectedStatus: http.StatusOK,
 			expectedBody:   "success",
 			expectError:    false,
