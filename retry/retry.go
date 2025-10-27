@@ -1,13 +1,16 @@
 package retry
 
 import (
-	"errors"
-	"fmt"
 	"log/slog"
 	"net/http"
 	"net/http/httputil"
+	"strconv"
+	"strings"
+	"time"
 
 	"github.com/cenkalti/backoff/v5"
+	"github.com/go-errors/errors"
+	"github.com/smithy-security/pkg/utils"
 )
 
 const defaultMaxRetries uint = 5
@@ -29,12 +32,17 @@ var (
 )
 
 type (
+	// ResponseInfoLogger is allowed to inspect the retryable response and
+	// print more info about it that might be useful to the caller for
+	// debugging
+	ResponseInfoLogger func(res *http.Response, logger Logger)
+
 	// Logger allows to inject a custom logger in the client.
 	Logger interface {
-		Error(msg string, keysAndValues ...interface{})
-		Info(msg string, keysAndValues ...interface{})
-		Debug(msg string, keysAndValues ...interface{})
-		Warn(msg string, keysAndValues ...interface{})
+		Error(msg string, keysAndValues ...any)
+		Info(msg string, keysAndValues ...any)
+		Debug(msg string, keysAndValues ...any)
+		Warn(msg string, keysAndValues ...any)
 	}
 
 	// NextRetryInSeconds allows customising the behaviour for the calculating the next retry.
@@ -59,6 +67,9 @@ type (
 		// AcceptedStatusCodes allows to specify the non-retryable status codes.
 		// defaultAcceptedStatusCodes are the default.
 		AcceptedStatusCodes map[int]struct{}
+		// ResponseInfoLoggerFunc when set will be used to check the response
+		// returned by the API
+		ResponseInfoLoggerFunc ResponseInfoLogger
 	}
 
 	retry struct {
@@ -124,7 +135,7 @@ func applyConfig(cfg Config) (Config, error) {
 func NewClient(config Config) (*http.Client, error) {
 	config, err := applyConfig(config)
 	if err != nil {
-		return nil, fmt.Errorf("failed to apply config: %w", err)
+		return nil, errors.Errorf("failed to apply config: %w", err)
 	}
 
 	config.BaseClient.Transport = &retry{
@@ -139,13 +150,48 @@ func NewClient(config Config) (*http.Client, error) {
 func NewRoundTripper(config Config) (http.RoundTripper, error) {
 	config, err := applyConfig(config)
 	if err != nil {
-		return nil, fmt.Errorf("failed to apply config: %w", err)
+		return nil, errors.Errorf("failed to apply config: %w", err)
 	}
 
 	return &retry{
 		config:        config,
 		baseTransport: config.BaseTransport,
 	}, nil
+}
+
+const noRetryHeader = -1
+
+// parseRetryHeader does a best effort parsing of the retry header
+func parseRetryHeader(logger Logger, resp *http.Response) int {
+	vals, ok := resp.Header["Retry-After"]
+	if !ok {
+		return noRetryHeader
+	}
+
+	logger.Debug("response contains retry after header", slog.String("vals", strings.Join(vals, ",")))
+	if len(vals) > 1 {
+		logger.Error("retry header has multiple values")
+		return noRetryHeader
+	}
+
+	retrySeconds, err := strconv.ParseInt(vals[0], 10, 32)
+	if err == nil {
+		return int(retrySeconds)
+	}
+
+	logger.Debug(
+		"could not parse `retry after` value into seconds, trying as a date",
+		slog.String("err", err.Error()),
+	)
+
+	retryAfterTime, err := time.Parse(http.TimeFormat, vals[0])
+	if err == nil {
+		logger.Debug("parsed successfully time from retry after header")
+		return int(time.Until(retryAfterTime).Seconds()) + 1
+	}
+
+	logger.Error("could not parse http time in retry header", slog.String("err", err.Error()))
+	return noRetryHeader
 }
 
 // RoundTrip implements a http transport RoundTripper with retry capabilities.
@@ -168,13 +214,16 @@ func (re *retry) RoundTrip(req *http.Request) (*http.Response, error) {
 			switch {
 			case !isAcceptedStatus && currAttempt >= re.config.MaxRetries:
 				return resp, backoff.Permanent(
-					fmt.Errorf(
+					errors.Errorf(
 						"maximum number of retries exceeded: %d",
 						currAttempt,
 					),
 				)
 			case !isAcceptedStatus && isRetryableStatus:
-				nextRetryInSeconds := re.config.NextRetryInSecondsFunc(currAttempt)
+				nextRetryInSeconds := parseRetryHeader(logger, resp)
+				if nextRetryInSeconds == noRetryHeader {
+					nextRetryInSeconds = re.config.NextRetryInSecondsFunc(currAttempt)
+				}
 
 				logger.Debug(
 					"retryable status code, retrying",
@@ -182,7 +231,13 @@ func (re *retry) RoundTrip(req *http.Request) (*http.Response, error) {
 					slog.Int("curr_attempt", int(currAttempt)),
 					slog.Int("status_code", resp.StatusCode),
 				)
+
+				if !utils.IsNil(re.config.ResponseInfoLoggerFunc) {
+					re.config.ResponseInfoLoggerFunc(resp, logger)
+				}
+
 				currAttempt++
+
 				return resp, backoff.RetryAfter(nextRetryInSeconds)
 			case !isAcceptedStatus && !isRetryableStatus:
 				bb, err := httputil.DumpResponse(resp, true)
@@ -197,7 +252,8 @@ func (re *retry) RoundTrip(req *http.Request) (*http.Response, error) {
 					slog.Int("status_code", resp.StatusCode),
 					slog.String("raw_body", string(bb)),
 				)
-				return resp, backoff.Permanent(fmt.Errorf("invalid status code: %d", resp.StatusCode))
+
+				return resp, backoff.Permanent(errors.Errorf("invalid status code: %d", resp.StatusCode))
 			}
 
 			return resp, nil
@@ -209,7 +265,7 @@ func (re *retry) RoundTrip(req *http.Request) (*http.Response, error) {
 		retryableOp,
 	)
 	if err != nil {
-		return result, fmt.Errorf("could not process backoff result: %w", err)
+		return result, errors.Errorf("could not process backoff result: %w", err)
 	}
 
 	return result, nil
