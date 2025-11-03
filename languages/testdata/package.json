@@ -1,0 +1,43 @@
+{
+  "name": "my-project",
+  "version": "1.0.0",
+  "description": "A sample Node.js project",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "nodemon index.js",
+    "test": "jest",
+    "build": "webpack --mode production",
+    "lint": "eslint src/**/*.js"
+  },
+  "keywords": [
+    "nodejs",
+    "example",
+    "sample"
+  ],
+  "author": "Your Name <your.email@example.com>",
+  "license": "MIT",
+  "dependencies": {
+    "express": "^4.18.2",
+    "lodash": "^4.17.21",
+    "axios": "^1.4.0"
+  },
+  "devDependencies": {
+    "jest": "^29.5.0",
+    "nodemon": "^2.0.22",
+    "eslint": "^8.42.0",
+    "webpack": "^5.85.0"
+  },
+  "engines": {
+    "node": ">=14.0.0",
+    "npm": ">=6.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/username/my-project.git"
+  },
+  "bugs": {
+    "url": "https://github.com/username/my-project/issues"
+  },
+  "homepage": "https://github.com/username/my-project#readme"
+}
