@@ -1,0 +1,33 @@
+[package]
+name = "web-server"
+version = "0.2.5"
+authors = ["Alice <alice@example.com>"]
+edition = "2021"
+rust-version = "1.70"
+license = "MIT OR Apache-2.0"
+description = "A simple web server"
+repository = "https://github.com/user/web-server"
+keywords = ["web", "server", "http"]
+categories = ["web-programming::http-server"]
+
+[dependencies]
+# Simple versions
+serde = "1.0"
+log = "0.4"
+
+# Complex dependencies
+tokio = { version = "1.28", features = ["full"] }
+axum = { version = "0.6", default-features = false, features = ["http1", "json"] }
+
+# Git dependency
+my-utils = { git = "https://github.com/me/utils", tag = "v0.1.0" }
+
+# Local dependency
+my-models = { path = "../models" }
+
+# Optional dependencies
+redis = { version = "0.23", optional = true }
+
+[dev-dependencies]
+tokio-test = "0.4"
+mockall = "0.11"
